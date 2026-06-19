@@ -1,0 +1,3 @@
+#!/bin/bash
+export MAKEOPTS="-j$(nproc)"
+export GENTOO_MIRRORS="https://distfiles.gentoo.org"

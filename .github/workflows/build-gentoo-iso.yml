@@ -41,6 +41,7 @@ jobs:
           cp -v epox/catalyst.conf /etc/catalyst/catalyst.conf
           mkdir -p /etc/catalyst
           cp -rv epox/portage /etc/catalyst/portage
+          cp -v epox/env/catalystrc /etc/catalyst/env.sh
 
       - name: Download seed stage3
         run: |
