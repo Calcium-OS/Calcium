@@ -33,7 +33,7 @@ jobs:
           printf '%s\n' 'dev-util/catalyst ~amd64' > /etc/portage/package.accept_keywords/catalyst
           mkdir -p /etc/portage/package.use
           printf '%s\n' '>=sys-apps/util-linux-2.41.4-r1 python' '>=sys-boot/grub-2.14-r5 grub_platforms_efi-32' > /etc/portage/package.use/catalyst
-          emerge --getbinpkg catalyst dev-vcs/git sys-fs/squashfs-tools sys-boot/efibootmgr
+          emerge --getbinpkg catalyst dev-vcs/git sys-fs/squashfs-tools sys-fs/squashfs-tools-ng sys-boot/efibootmgr
 
       - name: Configure catalyst
         run: |
@@ -55,6 +55,10 @@ jobs:
       - name: Set up repository symlink for catalyst spec
         run: |
           ln -sf "$GITHUB_WORKSPACE" /repo
+
+      - name: Create portage snapshot for catalyst
+        run: |
+          catalyst -s stable
 
       - name: Build livecd-stage2 ISO via catalyst
         run: |
