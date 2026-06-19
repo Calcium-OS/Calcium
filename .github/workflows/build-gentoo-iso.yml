@@ -8,7 +8,7 @@ on:
 env:
   ISO_NAME: gentoo-gnome-openrc-amd64
   CATALYST_STOREDIR: /var/tmp/catalyst
-  SEED_STAGE3: https://distfiles.gentoo.org/releases/amd64/autobuilds/current-stage3-amd64-openrc/stage3-amd64-openrc-20250101T163059Z.tar.xz
+  STAGE3_BASE: https://distfiles.gentoo.org/releases/amd64/autobuilds
 
 jobs:
   build-iso:
@@ -44,8 +44,10 @@ jobs:
         run: |
           SEED_DIR="$CATALYST_STOREDIR"/builds/default
           mkdir -p "$SEED_DIR"
-          wget -q "$SEED_STAGE3" -O /tmp/seed-stage3.tar.xz
+          LATEST=$(wget -q -O - "$STAGE3_BASE/latest-stage3-amd64-openrc.txt" | tail -1 | cut -d' ' -f1)
+          wget -q "$STAGE3_BASE/$LATEST" -O /tmp/seed-stage3.tar.xz
           cp /tmp/seed-stage3.tar.xz "$SEED_DIR"/stage3-amd64-openrc-latest.tar.xz
+          echo "Seed: $LATEST"
 
       - name: Set up repository symlink for catalyst spec
         run: |
