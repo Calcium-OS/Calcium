@@ -29,6 +29,8 @@ jobs:
           emerge --oneshot sys-devel/bc
           mkdir -p /etc/portage/package.accept_keywords
           printf '%s\n' 'dev-util/catalyst ~amd64' > /etc/portage/package.accept_keywords/catalyst
+          mkdir -p /etc/portage/package.use
+          printf '%s\n' '>=sys-apps/util-linux-2.41.4-r1 python' '>=sys-boot/grub-2.14-r5 grub_platforms_efi-32' > /etc/portage/package.use/catalyst
           emerge catalyst dev-vcs/git sys-fs/squashfs-tools sys-boot/efibootmgr
 
       - name: Configure catalyst
