@@ -44,7 +44,7 @@ jobs:
         run: |
           SEED_DIR="$CATALYST_STOREDIR"/builds/default
           mkdir -p "$SEED_DIR"
-          LATEST=$(wget -q -O - "$STAGE3_BASE/latest-stage3-amd64-openrc.txt" | tail -1 | cut -d' ' -f1)
+          LATEST=$(wget -q -O - "$STAGE3_BASE/latest-stage3-amd64-openrc.txt" | sed -n '/^[0-9]/p' | head -1 | cut -d' ' -f1)
           wget -q "$STAGE3_BASE/$LATEST" -O /tmp/seed-stage3.tar.xz
           cp /tmp/seed-stage3.tar.xz "$SEED_DIR"/stage3-amd64-openrc-latest.tar.xz
           echo "Seed: $LATEST"
