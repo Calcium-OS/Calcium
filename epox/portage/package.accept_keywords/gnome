@@ -1,0 +1,5 @@
+# GNOME ~amd64 keywords for LiveCD
+gnome-base/gnome ~amd64
+gnome-base/gnome-core ~amd64
+gnome-base/gdm ~amd64
+gnome-base/gnome-shell ~amd64

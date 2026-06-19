@@ -1,0 +1,10 @@
+# GNOME package USE flags for LiveCD
+gnome-base/gdm -systemd elogind
+gnome-base/gnome-session -systemd elogind
+gnome-base/gnome-shell -systemd elogind
+gnome-base/gnome-settings-daemon -systemd elogind
+gnome-base/nautilus elogind
+gnome-base/gvfs elogind udisks
+media-libs/mesa vaapi
+x11-base/xorg-server udev
+app-shells/zsh completion

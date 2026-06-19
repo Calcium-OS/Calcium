@@ -1,0 +1,60 @@
+name: Build Gentoo ISO (GNOME + OpenRC + Zsh)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  ISO_NAME: gentoo-gnome-openrc-amd64
+  CATALYST_STOREDIR: /var/tmp/catalyst
+  SEED_STAGE3: https://distfiles.gentoo.org/releases/amd64/autobuilds/current-stage3-amd64-openrc/stage3-amd64-openrc-20250101T163059Z.tar.xz
+
+jobs:
+  build-iso:
+    runs-on: ubuntu-latest
+    container:
+      image: gentoo/stage3:latest
+      options: --privileged --cap-add=ALL -v /dev:/dev
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize Portage tree and install catalyst
+        run: |
+          mkdir -p /etc/portage/repos.conf
+          printf '%s\n' '[gentoo]' 'location = /var/db/repos/gentoo' 'sync-type = webrsync' 'auto-sync = yes' > /etc/portage/repos.conf/gentoo.conf
+          emerge-webrsync
+          emerge --oneshot sys-devel/bc
+          emerge catalyst dev-vcs/git sys-fs/squashfs-tools sys-boot/efibootmgr
+
+      - name: Configure catalyst
+        run: |
+          mkdir -p "$CATALYST_STOREDIR"
+          cp -v epox/catalyst.conf /etc/catalyst/catalyst.conf
+          mkdir -p /etc/catalyst
+          cp -rv epox/portage /etc/catalyst/portage
+
+      - name: Download seed stage3
+        run: |
+          SEED_DIR="$CATALYST_STOREDIR"/builds/default
+          mkdir -p "$SEED_DIR"
+          wget -q "$SEED_STAGE3" -O /tmp/seed-stage3.tar.xz
+          cp /tmp/seed-stage3.tar.xz "$SEED_DIR"/stage3-amd64-openrc-latest.tar.xz
+
+      - name: Set up repository symlink for catalyst spec
+        run: |
+          ln -sf "$GITHUB_WORKSPACE" /repo
+
+      - name: Build livecd-stage2 ISO via catalyst
+        run: |
+          export CATALYST_STOREDIR
+          catalyst -f /repo/epox/gentoo-gnome.spec
+
+      - name: Upload ISO artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.ISO_NAME }}
+          path: /${{ env.ISO_NAME }}.iso
+          compression-level: 0
