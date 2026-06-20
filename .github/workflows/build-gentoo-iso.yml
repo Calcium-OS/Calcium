@@ -37,7 +37,7 @@ jobs:
 
       - name: Configure catalyst
         run: |
-          mkdir -p "$CATALYST_STOREDIR"
+          mkdir -p "$CATALYST_STOREDIR" /var/tmp/ccache
           cp -v epox/catalyst.conf /etc/catalyst/catalyst.conf
           mkdir -p /etc/catalyst
           cp -rv epox/portage /etc/catalyst/portage
