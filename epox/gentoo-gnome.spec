@@ -26,7 +26,6 @@ livecd/type: generic-livecd
 livecd/bootargs: quiet
 
 livecd/rm: /usr/portage/distfiles
-livecd/unmerge: sys-devel/libtool sys-devel/autoconf sys-devel/automake sys-devel/gdb app-text/asciidoc
 
 livecd/users: gentoo
 
