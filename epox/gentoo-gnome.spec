@@ -15,8 +15,7 @@ portage_confdir: /etc/catalyst/portage
 binrepo_path: /x86-64
 
 boot/kernel: gentoo
-boot/kernel/gentoo/sources: gentoo-sources
-boot/kernel/gentoo/config: /repo/epox/kernel/config
+boot/kernel/gentoo/distkernel: yes
 
 livecd/fstype: squashfs
 livecd/root_overlay: /repo/epox/rootfs-overlay

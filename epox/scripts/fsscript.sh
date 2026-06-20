@@ -12,7 +12,7 @@ printf '%s\n' \
   'gnome-base/gnome ~amd64' \
   'gnome-base/gdm ~amd64' \
   'gnome-base/gnome-shell ~amd64' \
-  'sys-kernel/gentoo-sources ~amd64' \
+  'sys-kernel/gentoo-kernel-bin ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
@@ -37,7 +37,8 @@ emerge --quiet --getbinpkg --noreplace \
   sys-apps/dmidecode \
   app-misc/screen \
   sys-apps/pciutils \
-  sys-apps/usbutils
+  sys-apps/usbutils \
+  sys-kernel/dracut
 
 echo ">>> Configuring LiveCD environment..."
 
