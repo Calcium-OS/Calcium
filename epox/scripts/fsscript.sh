@@ -54,17 +54,6 @@ GDM_WAYLAND=1
 GDM_XSESSION=/etc/X11/Sessions/gnome
 GDM
 
-# Zsh system-wide config
-cat > /etc/zsh/zshrc <<'ZSHRC'
-autoload -Uz compinit promptinit
-compinit
-promptinit
-prompt gentoo
-setopt autocd extendedglob notify
-bindkey -e
-export EDITOR=vim
-ZSHRC
-
 # Sudo for live user
 mkdir -p /etc/sudoers.d
 echo "gentoo ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/liveuser
