@@ -33,7 +33,7 @@ jobs:
           printf '%s\n' 'dev-util/catalyst ~amd64' > /etc/portage/package.accept_keywords/catalyst
           mkdir -p /etc/portage/package.use
           printf '%s\n' '>=sys-apps/util-linux-2.41.4-r1 python' '>=sys-boot/grub-2.14-r5 grub_platforms_efi-32' > /etc/portage/package.use/catalyst
-          emerge --getbinpkg catalyst dev-vcs/git sys-fs/squashfs-tools sys-fs/squashfs-tools-ng sys-boot/efibootmgr
+          emerge --getbinpkg catalyst dev-vcs/git sys-fs/squashfs-tools sys-fs/squashfs-tools-ng sys-boot/efibootmgr app-portage/mirrorselect
 
       - name: Configure catalyst
         run: |
@@ -42,6 +42,21 @@ jobs:
           mkdir -p /etc/catalyst
           cp -rv epox/portage /etc/catalyst/portage
           cp -v epox/env/catalystrc /etc/catalyst/env.sh
+
+      - name: Select fastest Gentoo mirrors
+        run: |
+          echo ">>> Selecting fastest 3 mirrors..."
+          MIRRORS=$(mirrorselect -s 3 -b 10 -c us -o 2>/dev/null | grep '^GENTOO_MIRRORS' || true)
+          if [ -z "$MIRRORS" ]; then
+            echo "mirrorselect failed, using defaults"
+            MIRRORS='GENTOO_MIRRORS="https://distfiles.gentoo.org https://mirror.rackspace.com/gentoo/ https://mirrors.rit.edu/gentoo/"'
+          fi
+          echo "$MIRRORS"
+          # Update env script used inside catalyst chroot
+          sed -i "/^export GENTOO_MIRRORS/d" /etc/catalyst/env.sh
+          echo "export ${MIRRORS#GENTOO_MIRRORS=}" >> /etc/catalyst/env.sh
+          # Also update host make.conf for subsequent emerges
+          echo "$MIRRORS" >> /etc/portage/make.conf
 
       - name: Download seed stage3
         run: |
