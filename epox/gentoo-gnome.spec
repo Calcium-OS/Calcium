@@ -16,6 +16,7 @@ binrepo_path: /x86-64
 
 boot/kernel: gentoo
 boot/kernel/gentoo/distkernel: yes
+boot/kernel/gentoo/sources: sys-kernel/gentoo-kernel-bin
 
 livecd/fstype: squashfs
 livecd/root_overlay: /repo/epox/rootfs-overlay
