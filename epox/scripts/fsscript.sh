@@ -22,7 +22,7 @@ printf '%s\n' \
   > /etc/portage/package.use/gnome
 
 # Install all desktop packages
-emerge --quiet --noreplace \
+emerge --quiet --getbinpkg --noreplace \
   app-shells/zsh \
   gnome-base/gnome \
   gnome-base/gnome-core \

@@ -12,6 +12,7 @@ subarch: amd64
 source_subpath: default/stage3-amd64-openrc-latest
 
 portage_confdir: /etc/catalyst/portage
+binrepo_path: /x86-64
 
 boot/kernel: gentoo
 boot/kernel/gentoo/sources: gentoo-sources

@@ -59,6 +59,9 @@ jobs:
       - name: Create portage snapshot for catalyst
         run: |
           catalyst -s stable
+          SNAPSHOT_FILE=$(ls "$CATALYST_STOREDIR"/snapshots/gentoo-*.sqfs | head -1)
+          ln -sf "$SNAPSHOT_FILE" "$CATALYST_STOREDIR"/snapshots/gentoo-stable.sqfs
+          echo "Snapshot: $SNAPSHOT_FILE -> gentoo-stable.sqfs"
 
       - name: Build livecd-stage2 ISO via catalyst
         run: |
