@@ -66,6 +66,7 @@ export EDITOR=vim
 ZSHRC
 
 # Sudo for live user
+mkdir -p /etc/sudoers.d
 echo "gentoo ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/liveuser
 
 echo ">>> LiveCD configuration complete"
