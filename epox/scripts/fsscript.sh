@@ -10,7 +10,6 @@ mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use
 
 printf '%s\n' \
   'gnome-base/gnome ~amd64' \
-  'gnome-base/gnome-core ~amd64' \
   'gnome-base/gdm ~amd64' \
   'gnome-base/gnome-shell ~amd64' \
   'sys-kernel/gentoo-sources ~amd64' \
@@ -25,7 +24,6 @@ printf '%s\n' \
 emerge --quiet --getbinpkg --noreplace \
   app-shells/zsh \
   gnome-base/gnome \
-  gnome-base/gnome-core \
   gnome-base/gdm \
   x11-themes/gnome-themes-standard \
   net-wireless/wpa_supplicant \
