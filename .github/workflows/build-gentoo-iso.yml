@@ -58,10 +58,18 @@ jobs:
 
       - name: Create portage snapshot for catalyst
         run: |
-          catalyst -s stable
-          SNAPSHOT_FILE=$(ls "$CATALYST_STOREDIR"/snapshots/gentoo-*.sqfs | head -1)
-          ln -sf "$SNAPSHOT_FILE" "$CATALYST_STOREDIR"/snapshots/gentoo-stable.sqfs
-          echo "Snapshot: $SNAPSHOT_FILE -> gentoo-stable.sqfs"
+          mkdir -p "$CATALYST_STOREDIR"/snapshots "$CATALYST_STOREDIR"/repos
+          git clone --quiet --depth=1 --bare \
+            -c gc.reflogExpire=0 -c gc.reflogExpireUnreachable=0 \
+            -c gc.rerereresolved=0 -c gc.rerereunresolved=0 \
+            -c gc.pruneExpire=now \
+            --branch=stable \
+            https://anongit.gentoo.org/git/repo/sync/gentoo.git \
+            "$CATALYST_STOREDIR"/repos/gentoo.git
+          SNAPSHOT="$CATALYST_STOREDIR"/snapshots/gentoo-stable.sqfs
+          git -C "$CATALYST_STOREDIR"/repos/gentoo.git archive --format=tar stable \
+            | tar2sqfs "$SNAPSHOT" -q -f -j1 -c gzip
+          echo "Snapshot created: $SNAPSHOT ($(stat -c%s "$SNAPSHOT") bytes)"
 
       - name: Build livecd-stage2 ISO via catalyst
         run: |
