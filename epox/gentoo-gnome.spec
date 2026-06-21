@@ -32,4 +32,4 @@ livecd/rm: /usr/portage/distfiles
 
 livecd/fsscript: /repo/epox/scripts/fsscript.sh
 
-livecd/rcadd: gdm|default dbus|default elogind|boot dhcpcd|default netmount|default ntpd|default
+livecd/rcadd: gdm|default dbus|default elogind|boot cronie|default dhcpcd|default netmount|default ntpd|default

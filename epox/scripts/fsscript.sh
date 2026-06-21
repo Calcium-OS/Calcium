@@ -47,7 +47,14 @@ emerge --quiet --getbinpkg --noreplace \
   net-misc/wget \
   net-misc/yt-dlp \
   gnome-extra/bamf \
-  dev-libs/keybinder
+  dev-libs/keybinder \
+  sys-process/cronie \
+  app-eselect/eselect-repository
+
+echo ">>> Enabling Guru overlay and installing opencode-bin..."
+eselect repository enable guru 2>/dev/null || true
+emaint sync -r guru 2>/dev/null || true
+emerge --quiet --noreplace dev-util/opencode-bin || echo "(opencode-bin install failed)"
 
 echo ">>> Creating system users..."
 id gdm &>/dev/null || useradd -r gdm
@@ -137,6 +144,65 @@ if [ -n "$SUNSHINE_URL" ]; then
   rm -f /opt/sunshine/sunshine.AppImage
 fi
 
+echo ">>> Installing LibreWolf..."
+LIBREWOLF_URL=$(wget -q -O- "https://gitlab.com/api/v4/projects/librewolf-community%2Fbrowser%2Fappimage/releases/permalink/latest" 2>/dev/null | python3 -c "
+import json,sys
+try:
+    d=json.load(sys.stdin)
+    for a in d.get('assets',{}).get('links',[]):
+        if a['name'].endswith('.AppImage'):
+            print(a.get('direct_asset_url',''))
+            break
+except: pass
+" 2>/dev/null || true)
+if [ -n "$LIBREWOLF_URL" ]; then
+    mkdir -p /opt/librewolf
+    wget -q -O /opt/librewolf/librewolf.AppImage "$LIBREWOLF_URL" || true
+    if [ -f /opt/librewolf/librewolf.AppImage ]; then
+        chmod +x /opt/librewolf/librewolf.AppImage
+        cd /opt/librewolf
+        ./librewolf.AppImage --appimage-extract 2>/dev/null || true
+        if [ -f /opt/librewolf/squashfs-root/AppRun ]; then
+            ln -sf /opt/librewolf/squashfs-root/AppRun /opt/librewolf/librewolf
+        fi
+        rm -f /opt/librewolf/librewolf.AppImage
+    fi
+else
+    echo "(LibreWolf URL not found)"
+fi
+
+echo ">>> Installing AppImageUpdate..."
+APPIMAGEUPDATE_URL=$(wget -q -O- "https://api.github.com/repos/AppImage/AppImageUpdate/releases/latest" \
+  | grep "browser_download_url.*AppImageUpdate.*x86_64.*AppImage" | head -1 | cut -d'"' -f4)
+if [ -n "$APPIMAGEUPDATE_URL" ]; then
+    wget -q -O /usr/local/bin/AppImageUpdate "$APPIMAGEUPDATE_URL" && \
+    chmod +x /usr/local/bin/AppImageUpdate || \
+    echo "(AppImageUpdate install failed)"
+fi
+
+echo ">>> Setting up auto-update cron jobs..."
+mkdir -p /etc/cron.daily /etc/cron.weekly
+
+cat > /etc/cron.daily/flatpak-update <<'CRON'
+#!/bin/bash
+flatpak update -y --noninteractive 2>/dev/null || true
+CRON
+chmod +x /etc/cron.daily/flatpak-update
+
+cat > /etc/cron.weekly/gentoo-update <<'CRON'
+#!/bin/bash
+emerge --sync --quiet && emerge --update --deep --changed-use @world --quiet-build 2>/dev/null || true
+CRON
+chmod +x /etc/cron.weekly/gentoo-update
+
+cat > /etc/cron.weekly/appimage-update <<'CRON'
+#!/bin/bash
+for img in /opt/*/squashfs-root/AppRun; do
+    [ -f "$img" ] && AppImageUpdate "$img" 2>/dev/null || true
+done
+CRON
+chmod +x /etc/cron.weekly/appimage-update
+
 echo ">>> Setting default wallpaper..."
 WALLPAPER_URL="https://images.steamusercontent.com/ugc/8546979052418597/251C5932F5CCC0355D748AA1A19608A0625C26E8/"
 mkdir -p /usr/share/backgrounds/gnome
@@ -185,6 +251,7 @@ sed -i 's/pam_systemd\.so/pam_elogind.so/g' /etc/pam.d/* 2>/dev/null || true
 rc-update add gdm default
 rc-update add dbus default
 rc-update add elogind default
+rc-update add cronie default
 
 # Remove passwords
 passwd -d root
