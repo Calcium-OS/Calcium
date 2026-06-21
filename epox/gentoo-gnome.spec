@@ -30,7 +30,8 @@ boot/kernel/gentoo/dracut_args: --xz --no-hostonly -a dmsquash-live -a dm -o i18
 
 livecd/rm: /usr/portage/distfiles
 
-livecd/users: gentoo
+livecd/users: livecd
+livecd/gdm_auto_login: livecd
 
 livecd/fsscript: /repo/epox/scripts/fsscript.sh
 

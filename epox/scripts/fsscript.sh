@@ -44,8 +44,8 @@ echo ">>> Configuring LiveCD environment..."
 
 # Set Zsh as default shell
 chsh -s /bin/zsh root
-if id gentoo &>/dev/null; then
-  chsh -s /bin/zsh gentoo
+if id livecd &>/dev/null; then
+  chsh -s /bin/zsh livecd
 fi
 
 # Configure GDM for OpenRC
@@ -55,8 +55,12 @@ GDM_WAYLAND=1
 GDM_XSESSION=/etc/X11/Sessions/gnome
 GDM
 
+# Remove passwords for live user and root
+passwd -d root
+passwd -d livecd
+
 # Sudo for live user
 mkdir -p /etc/sudoers.d
-echo "gentoo ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/liveuser
+echo "livecd ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/liveuser
 
 echo ">>> LiveCD configuration complete"
