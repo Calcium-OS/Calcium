@@ -49,7 +49,7 @@ emerge --quiet --getbinpkg --noreplace \
   dev-libs/keybinder \
   sys-process/cronie \
   app-eselect/eselect-repository \
-  x11-misc/wl-clipboard
+  gui-apps/wl-clipboard
 
 echo ">>> Enabling Guru overlay and installing opencode-bin..."
 eselect repository enable guru 2>/dev/null || true
