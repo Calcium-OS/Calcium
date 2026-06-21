@@ -30,8 +30,6 @@ boot/kernel/gentoo/dracut_args: --xz --no-hostonly -a dmsquash-live -a dm -o i18
 
 livecd/rm: /usr/portage/distfiles
 
-livecd/gdm_auto_login: livecd
-
 livecd/fsscript: /repo/epox/scripts/fsscript.sh
 
 livecd/rcadd: gdm|default dbus|default elogind|boot dhcpcd|default netmount|default ntpd|default
