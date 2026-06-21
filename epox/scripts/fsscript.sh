@@ -43,7 +43,7 @@ emerge --quiet --getbinpkg --noreplace \
   net-misc/wget
 
 echo ">>> Creating livecd user..."
-useradd -m -s /bin/zsh -G users,wheel,audio,video,cdrom,usb,portage livecd
+useradd -m -s /bin/zsh -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
 echo ">>> Installing ProtonPlus via Flatpak..."
 flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
@@ -86,9 +86,14 @@ chsh -s /bin/zsh livecd
 
 cat > /etc/conf.d/gdm <<'GDM'
 DISPLAYMANAGER="gdm"
-GDM_WAYLAND=1
+GDM_WAYLAND=0
 GDM_XSESSION=/etc/X11/Sessions/gnome
 GDM
+
+# Add GDM, dbus, and elogind to runlevels
+rc-update add gdm default
+rc-update add dbus default
+rc-update add elogind default
 
 # Remove passwords
 passwd -d root
