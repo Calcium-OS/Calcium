@@ -21,6 +21,7 @@ printf '%s\n' \
 
 emerge --quiet --getbinpkg --noreplace \
   app-shells/zsh \
+  app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
   gnome-base/gdm \
   x11-themes/gnome-themes-standard \
@@ -30,10 +31,12 @@ emerge --quiet --getbinpkg --noreplace \
   app-portage/portage-utils \
   app-editors/vim \
   sys-process/htop \
+  sys-process/btop \
   app-admin/sudo \
   net-misc/ntp \
   sys-apps/dmidecode \
   app-misc/screen \
+  app-misc/lf \
   sys-apps/pciutils \
   sys-apps/usbutils \
   sys-kernel/dracut \
@@ -44,13 +47,21 @@ emerge --quiet --getbinpkg --noreplace \
   sys-fs/dosfstools \
   net-misc/wget
 
-echo ">>> Creating livecd user..."
+echo ">>> Creating system users..."
+id gdm &>/dev/null || useradd -r gdm
 useradd -m -s /bin/zsh -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
-echo ">>> Installing ProtonPlus via Flatpak..."
+echo ">>> Installing Flatpak apps..."
 flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-flatpak install --system -y --noninteractive flathub com.vysp3r.ProtonPlus 2>/dev/null || \
-  echo "(flatpak install failed — ProtonPlus will need first-boot install)"
+for APP in \
+  com.vysp3r.ProtonPlus \
+  com.valvesoftware.Steam \
+  com.obsproject.Studio \
+  md.obsidian.Obsidian \
+  com.github.tchx84.Flatseal; do
+  flatpak install --system -y --noninteractive flathub "$APP" 2>/dev/null || \
+    echo "(flatpak install of $APP failed — will need first-boot install)"
+done
 
 echo ">>> Installing Sunshine..."
 SUNSHINE_URL=$(wget -q -O- https://api.github.com/repos/LizardByte/Sunshine/releases/latest \
@@ -108,6 +119,9 @@ depend() {
 }
 GDMINIT
 chmod +x /etc/init.d/gdm
+
+# Patch PAM files: systemd-built binary GDM references pam_systemd.so but we use elogind
+sed -i 's/pam_systemd\.so/pam_elogind.so/g' /etc/pam.d/* 2>/dev/null || true
 
 # Add services to runlevels
 rc-update add gdm default
