@@ -22,8 +22,11 @@ livecd/fstype: squashfs
 livecd/root_overlay: /repo/epox/rootfs-overlay
 livecd/iso: /gentoo-gnome-openrc-amd64.iso
 livecd/type: generic-livecd
+livecd/volid: Gentoo_GNOME_Live
 
-livecd/bootargs: quiet
+livecd/bootargs: root=live:CDLABEL=Gentoo_GNOME_Live quiet
+
+boot/kernel/gentoo/dracut_args: --xz --no-hostonly -a dmsquash-live -o i18n -o crypt -I busybox
 
 livecd/rm: /usr/portage/distfiles
 
