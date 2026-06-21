@@ -36,7 +36,6 @@ emerge --quiet --getbinpkg --noreplace \
   net-misc/ntp \
   sys-apps/dmidecode \
   app-misc/screen \
-  app-misc/lf \
   sys-apps/pciutils \
   sys-apps/usbutils \
   sys-kernel/dracut \
@@ -45,7 +44,10 @@ emerge --quiet --getbinpkg --noreplace \
   dev-util/dialog \
   sys-fs/cryptsetup \
   sys-fs/dosfstools \
-  net-misc/wget
+  net-misc/wget \
+  net-misc/yt-dlp \
+  gnome-extra/bamf \
+  dev-libs/keybinder
 
 echo ">>> Creating system users..."
 id gdm &>/dev/null || useradd -r gdm
@@ -62,6 +64,62 @@ for APP in \
   flatpak install --system -y --noninteractive flathub "$APP" 2>/dev/null || \
     echo "(flatpak install of $APP failed — will need first-boot install)"
 done
+
+echo ">>> Installing lf file manager..."
+LF_URL=$(wget -q -O- "https://api.github.com/repos/gokcehan/lf/releases/latest" \
+  | grep "browser_download_url.*lf-linux-amd64.tar.gz" | head -1 | cut -d'"' -f4)
+if [ -n "$LF_URL" ]; then
+  wget -q -O /tmp/lf.tar.gz "$LF_URL"
+  tar xzf /tmp/lf.tar.gz -C /usr/bin/ lf
+  chmod +x /usr/bin/lf
+  rm -f /tmp/lf.tar.gz
+fi
+
+echo ">>> Installing uv..."
+wget -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path 2>/dev/null || true
+
+echo ">>> Installing Fildem global menu..."
+wget -q -O /tmp/fildem.tar.gz https://github.com/sglbl/fildem-for-gnome46/archive/refs/heads/master.tar.gz
+tar xzf /tmp/fildem.tar.gz -C /tmp
+cd /tmp/fildem-for-gnome46-master
+pip3 install --break-system-packages future fuzzysearch . 2>/dev/null || true
+mkdir -p /usr/share/gnome-shell/extensions
+cp -r fildemGMenu@gonza.com /usr/share/gnome-shell/extensions/
+cd /
+rm -rf /tmp/fildem* /tmp/fildem-for-gnome46-master
+# Enable extension via system dconf database
+cat > /etc/dconf/db/local.d/01-fildem <<'FILDEMCONF'
+[org/gnome/shell]
+enabled-extensions=['fildemGMenu@gonza.com']
+FILDEMCONF
+cat > /etc/dconf/profile/user <<'DCONFPROF'
+user-db:user
+system-db:local
+DCONFPROF
+dconf update 2>/dev/null || true
+
+# Configure GTK modules for appmenu support
+mkdir -p /etc/skel/.config/gtk-3.0
+cat > /etc/skel/.config/gtk-3.0/settings.ini <<'GTKINI'
+[Settings]
+gtk-modules=appmenu-gtk-module
+GTKINI
+cat > /etc/skel/.gtkrc-2.0 <<'GTKRC'
+gtk-modules="appmenu-gtk-module"
+GTKRC
+
+# Autostart fildem daemon for all users
+mkdir -p /etc/xdg/autostart
+cat > /etc/xdg/autostart/fildem.desktop <<'FILDEMAUTO'
+[Desktop Entry]
+Type=Application
+Exec=fildem
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Fildem Global Menu
+Comment=Run Fildem backend
+FILDEMAUTO
 
 echo ">>> Installing Sunshine..."
 SUNSHINE_URL=$(wget -q -O- https://api.github.com/repos/LizardByte/Sunshine/releases/latest \
