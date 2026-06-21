@@ -46,7 +46,6 @@ emerge --quiet --getbinpkg --noreplace \
   sys-fs/dosfstools \
   net-misc/wget \
   net-misc/yt-dlp \
-  gnome-extra/bamf \
   dev-libs/keybinder \
   sys-process/cronie \
   app-eselect/eselect-repository \
