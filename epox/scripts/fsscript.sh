@@ -92,7 +92,24 @@ GDM_WAYLAND=1
 GDM_XSESSION=/etc/X11/Sessions/gnome
 GDM
 
-# Add GDM, dbus, and elogind to runlevels
+# Create GDM OpenRC init script (binary gdm from binhost lacks it when built with systemd)
+cat > /etc/init.d/gdm <<'GDMINIT'
+#!/sbin/openrc-run
+supervisor=supervise-daemon
+description="GNOME Display Manager"
+command=/usr/sbin/gdm
+command_args="--no-daemon"
+pidfile=/run/${RC_SVCNAME}.pid
+command_background=false
+depend() {
+    need dbus
+    use elogind
+    after xdm-setup
+}
+GDMINIT
+chmod +x /etc/init.d/gdm
+
+# Add services to runlevels
 rc-update add gdm default
 rc-update add dbus default
 rc-update add elogind default
