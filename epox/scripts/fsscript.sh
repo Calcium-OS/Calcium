@@ -49,7 +49,8 @@ emerge --quiet --getbinpkg --noreplace \
   gnome-extra/bamf \
   dev-libs/keybinder \
   sys-process/cronie \
-  app-eselect/eselect-repository
+  app-eselect/eselect-repository \
+  x11-misc/wl-clipboard
 
 echo ">>> Enabling Guru overlay and installing opencode-bin..."
 eselect repository enable guru 2>/dev/null || true
@@ -67,7 +68,9 @@ for APP in \
   com.valvesoftware.Steam \
   com.obsproject.Studio \
   md.obsidian.Obsidian \
-  com.github.tchx84.Flatseal; do
+  com.github.tchx84.Flatseal \
+  com.saivert.pwvucontrol \
+  com.github.hluk.copyq; do
   flatpak install --system -y --noninteractive flathub "$APP" 2>/dev/null || \
     echo "(flatpak install of $APP failed — will need first-boot install)"
 done
@@ -202,6 +205,46 @@ for img in /opt/*/squashfs-root/AppRun; do
 done
 CRON
 chmod +x /etc/cron.weekly/appimage-update
+
+echo ">>> Configuring GNOME keyboard shortcuts..."
+cat > /etc/dconf/db/local.d/02-keyboard-shortcuts <<'SHORTCUTS'
+[org/gnome/desktop/wm/keybindings]
+close=['<Alt>F4', '<Super>q']
+
+[org/gnome/settings-daemon/plugins/media-keys]
+custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5/']
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0]
+name='Terminal'
+command='gnome-terminal'
+binding='<Super>Return'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1]
+name='Files'
+command='nautilus -w'
+binding='<Super>r'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2]
+name='Audio Manager'
+command='flatpak run com.saivert.pwvucontrol'
+binding='<Super>m'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3]
+name='LibreWolf'
+command='/opt/librewolf/librewolf'
+binding='<Super>w'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4]
+name='System Monitor'
+command='gnome-terminal -- btop'
+binding='<Super>h'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5]
+name='Clipboard Manager'
+command='flatpak run com.github.hluk.copyq'
+binding='<Super>comma'
+SHORTCUTS
+dconf update 2>/dev/null || true
 
 echo ">>> Setting default wallpaper..."
 WALLPAPER_URL="https://images.steamusercontent.com/ugc/8546979052418597/251C5932F5CCC0355D748AA1A19608A0625C26E8/"
