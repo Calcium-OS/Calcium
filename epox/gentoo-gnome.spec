@@ -26,7 +26,7 @@ livecd/volid: Gentoo_GNOME_Live
 
 livecd/bootargs: root=live:CDLABEL=Gentoo_GNOME_Live quiet
 
-boot/kernel/gentoo/dracut_args: --xz --no-hostonly -a dmsquash-live -o i18n -o crypt -I busybox
+boot/kernel/gentoo/dracut_args: --xz --no-hostonly -a dmsquash-live -a dm -o i18n -o crypt -I busybox
 
 livecd/rm: /usr/portage/distfiles
 

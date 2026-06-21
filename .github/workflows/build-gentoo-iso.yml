@@ -54,9 +54,25 @@ jobs:
           echo "$MIRRORS"
           # Update env script used inside catalyst chroot
           sed -i "/^export GENTOO_MIRRORS/d" /etc/catalyst/env.sh
-          echo "export ${MIRRORS#GENTOO_MIRRORS=}" >> /etc/catalyst/env.sh
+          echo "export $MIRRORS" >> /etc/catalyst/env.sh
           # Also update host make.conf for subsequent emerges
           echo "$MIRRORS" >> /etc/portage/make.conf
+
+      - name: Cache portage binary packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            /var/cache/binpkgs
+            /var/tmp/catalyst/packages
+            /var/tmp/ccache
+          key: catalyst-${{ hashFiles('epox/portage/**', 'epox/gentoo-gnome.spec', 'epox/catalyst.conf', 'epox/scripts/fsscript.sh') }}
+          restore-keys: catalyst-
+
+      - name: Cache portage snapshot
+        uses: actions/cache@v4
+        with:
+          path: /var/tmp/catalyst/snapshots
+          key: snapshot-${{ hashFiles('epox/gentoo-gnome.spec') }}
 
       - name: Download seed stage3
         run: |
