@@ -261,4 +261,18 @@ passwd -d livecd
 mkdir -p /etc/sudoers.d
 echo "livecd ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/liveuser
 
+echo ">>> Cleaning up to reduce ISO size..."
+# Remove portage tree, binpkgs, ccache (already covered by livecd/rm, but belt-and-suspenders)
+rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
+# Remove pip cache from fildem install
+rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
+# Remove flatpak repo cache (not needed at runtime)
+rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
+# Remove non-English locales (save ~100MB+)
+find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
+# Remove gtk-doc (developer docs, ~50MB)
+rm -rf /usr/share/gtk-doc 2>/dev/null || true
+# Remove info pages
+rm -rf /usr/share/info 2>/dev/null || true
+
 echo ">>> LiveCD configuration complete"
