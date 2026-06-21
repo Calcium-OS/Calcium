@@ -11,6 +11,7 @@ printf '%s\n' \
   'gnome-base/gdm ~amd64' \
   'gnome-base/gnome-shell ~amd64' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
+  'sys-kernel/linux-firmware ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
@@ -36,6 +37,7 @@ emerge --quiet --getbinpkg --noreplace \
   sys-apps/pciutils \
   sys-apps/usbutils \
   sys-kernel/dracut \
+  sys-kernel/linux-firmware \
   sys-apps/flatpak \
   dev-util/dialog \
   sys-fs/cryptsetup \
@@ -86,7 +88,7 @@ chsh -s /bin/zsh livecd
 
 cat > /etc/conf.d/gdm <<'GDM'
 DISPLAYMANAGER="gdm"
-GDM_WAYLAND=0
+GDM_WAYLAND=1
 GDM_XSESSION=/etc/X11/Sessions/gnome
 GDM
 
