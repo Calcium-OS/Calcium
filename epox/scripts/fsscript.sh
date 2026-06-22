@@ -16,13 +16,10 @@ printf '%s\n' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
-  '>=gnome-base/gdm-9999 elogind' \
-  '>=gnome-base/gnome-settings-daemon-9999 elogind' \
+  'gnome-base/gdm elogind' \
+  'gnome-base/gnome-settings-daemon elogind' \
   'sys-auth/pambase elogind gnome-keyring' \
   'sys-libs/libcap static-libs' \
-  >> /etc/portage/package.use/gnome
-
-printf '%s\n' \
   'gnome-base/gnome-extra-apps -games' \
   >> /etc/portage/package.use/gnome
 
@@ -30,11 +27,17 @@ printf '%s\n' \
   'gnome-extra/gnome-extensions-app' \
   > /etc/portage/package.mask/gnome-extensions
 
+# Pre-create system users and groups so that packages (like LXC) compiling 
+# with strict system constraints do not fail during install phases
+id gdm &>/dev/null || useradd -r gdm
+id livecd &>/dev/null || useradd -m -s /bin/zsh -G users,wheel,audio,video,cdrom,usb,portage,render livecd
+
 emerge --quiet --getbinpkg --noreplace \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
   gnome-base/gdm \
+  gui-libs/display-manager-init \
   x11-themes/gnome-themes-standard \
   net-wireless/wpa_supplicant \
   net-misc/dhcpcd \
@@ -81,15 +84,9 @@ eselect repository enable guru 2>/dev/null || true
 emaint sync -r guru 2>/dev/null || true
 emerge --quiet --noreplace dev-util/opencode-bin || echo "(opencode-bin install failed)"
 
-echo ">>> Creating system users..."
-id gdm &>/dev/null || useradd -r gdm
-useradd -m -s /bin/zsh -G users,wheel,audio,video,cdrom,usb,portage,render livecd
-
 echo ">>> Installing Flatpak apps..."
 flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
-# TODO - Change DNS to 1.1.1.1 as well.
-# Tor: "The next generation will be the real victims"
 printf '%s\n' \
   com.vysp3r.ProtonPlus \
   com.valvesoftware.Steam \
@@ -347,39 +344,23 @@ EXTENABLE
 
 echo ">>> Configuring LiveCD environment..."
 
-# Set Zsh as default shell
+# Set Zsh as default shell for users
 chsh -s /bin/zsh root
 chsh -s /bin/zsh livecd
 
-cat > /etc/conf.d/gdm <<'GDM'
+# FIXED: Configure Gentoo OpenRC unified display manager instead of an standalone script loop
+cat > /etc/conf.d/display-manager <<'DM'
 DISPLAYMANAGER="gdm"
 GDM_WAYLAND=1
 GDM_XSESSION=/etc/X11/Sessions/gnome
-GDM
-
-# Create GDM OpenRC init script (binary gdm from binhost lacks it when built with systemd)
-cat > /etc/init.d/gdm <<'GDMINIT'
-#!/sbin/openrc-run
-supervisor=supervise-daemon
-description="GNOME Display Manager"
-command=/usr/sbin/gdm
-command_args="--no-daemon"
-pidfile=/run/${RC_SVCNAME}.pid
-command_background=false
-depend() {
-    need dbus
-    need elogind
-    after xdm-setup
-}
-GDMINIT
-chmod +x /etc/init.d/gdm
+DM
 
 # Patch PAM files: systemd-built binary GDM references pam_systemd.so but we use elogind
 find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/pam_systemd\.so/pam_elogind.so/g' {} + 2>/dev/null || true
 find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/systemd-logind/elogind/g' {} + 2>/dev/null || true
 
-# Add services to runlevels
-rc-update add gdm default
+# FIXED: Replaced legacy gdm service configuration with standard OpenRC display-manager protocol
+rc-update add display-manager default
 rc-update add dbus default
 rc-update add elogind default
 rc-update add cronie default
@@ -404,17 +385,11 @@ mkdir -p /etc/sudoers.d
 echo "livecd ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/liveuser
 
 echo ">>> Cleaning up to reduce ISO size..."
-# Remove portage tree, binpkgs, ccache (already covered by livecd/rm, but belt-and-suspenders)
 rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
-# Remove pip cache from fildem install
 rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
-# Remove flatpak repo cache (not needed at runtime)
 rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
-# Remove non-English locales (save ~100MB+)
 find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
-# Remove gtk-doc (developer docs, ~50MB)
 rm -rf /usr/share/gtk-doc 2>/dev/null || true
-# Remove info pages
 rm -rf /usr/share/info 2>/dev/null || true
 
 echo ">>> LiveCD configuration complete"
