@@ -38,7 +38,6 @@ emerge --quiet --getbinpkg --noreplace \
   sys-boot/efibootmgr \
   app-portage/portage-utils \
   app-editors/vim \
-  sys-process/htop \
   sys-process/btop \
   app-admin/sudo \
   net-misc/ntp \
@@ -49,12 +48,10 @@ emerge --quiet --getbinpkg --noreplace \
   sys-kernel/dracut \
   sys-kernel/linux-firmware \
   sys-apps/flatpak \
-  dev-util/dialog \
   sys-fs/cryptsetup \
   sys-fs/dosfstools \
   net-misc/wget \
   net-misc/yt-dlp \
-  dev-libs/keybinder \
   sys-process/cronie \
   app-eselect/eselect-repository \
   gui-apps/wl-clipboard \
@@ -63,7 +60,6 @@ emerge --quiet --getbinpkg --noreplace \
   net-misc/rsync \
   dev-python/pygobject \
   app-containers/lxc \
-  dev-db/libgda \
   media-libs/gsound
 
 echo ">>> Configuring zram swap..."
@@ -88,7 +84,7 @@ useradd -m -s /bin/zsh -G users,wheel,audio,video,cdrom,usb,portage,render livec
 
 echo ">>> Installing Flatpak apps..."
 flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
-for APP in \
+printf '%s\n' \
   com.vysp3r.ProtonPlus \
   com.valvesoftware.Steam \
   com.obsproject.Studio \
@@ -99,10 +95,8 @@ for APP in \
   org.gnome.baobab \
   org.virt_manager.virt-manager \
   com.mattjakeman.ExtensionManager \
-  app.devsuite.Ptyxis; do
-  flatpak install --system -y --noninteractive flathub "$APP" 2>/dev/null || \
-    echo "(flatpak install of $APP failed — will need first-boot install)"
-done
+  app.devsuite.Ptyxis \
+  | xargs -P 3 -I{} sh -c 'flatpak install --system -y --noninteractive flathub "$1" 2>/dev/null || echo "(flatpak install of $1 failed)"' -- {}
 
 flatpak remote-add --system --if-not-exists mixtapes https://m-obeid.github.io/Mixtapes/mixtapes.flatpakrepo 2>/dev/null || true
 flatpak install --system -y --noninteractive mixtapes com.pocoguy.Muse 2>/dev/null || \
