@@ -6,7 +6,11 @@
 	"settings-schema":"org.gnome.shell.extensions.wintile-beyond",
 	"shell-version": [
                 "45",
-                "46"
+                "46",
+                "47",
+                "48",
+                "49",
+                "50"
 	], 
 	"version": "2"
 }

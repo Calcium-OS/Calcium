@@ -32,4 +32,4 @@ livecd/rm: /var/cache/distfiles /var/cache/binpkgs /var/tmp/ccache /var/db/repos
 
 livecd/fsscript: /repo/epox/scripts/fsscript.sh
 
-livecd/rcadd: gdm|default dbus|default elogind|boot cronie|default dhcpcd|default netmount|default ntpd|default
+livecd/rcadd: gdm|default dbus|default elogind|default cronie|default dhcpcd|default netmount|default ntpd|default

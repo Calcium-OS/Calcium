@@ -7,9 +7,9 @@ echo ">>> Installing packages for GNOME desktop..."
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use
 
 printf '%s\n' \
-  'gnome-base/gnome ~amd64' \
-  'gnome-base/gdm ~amd64' \
-  'gnome-base/gnome-shell ~amd64' \
+  'gnome-base/* ~amd64' \
+  'x11-wm/* ~amd64' \
+  'media-libs/gsound ~amd64' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
@@ -17,7 +17,15 @@ printf '%s\n' \
 printf '%s\n' \
   '>=gnome-base/gdm-9999 elogind' \
   '>=gnome-base/gnome-settings-daemon-9999 elogind' \
-  > /etc/portage/package.use/gnome
+  >> /etc/portage/package.use/gnome
+
+printf '%s\n' \
+  'gnome-base/gnome-extra-apps -games' \
+  >> /etc/portage/package.use/gnome
+
+printf '%s\n' \
+  'gnome-extra/gnome-extensions-app' \
+  > /etc/portage/package.mask/gnome-extensions
 
 emerge --quiet --getbinpkg --noreplace \
   app-shells/zsh \
@@ -89,7 +97,8 @@ for APP in \
   com.saivert.pwvucontrol \
   io.missioncenter.MissionCenter \
   org.gnome.baobab \
-  org.virt_manager.virt-manager; do
+  org.virt_manager.virt-manager \
+  com.mattjakeman.ExtensionManager; do
   flatpak install --system -y --noninteractive flathub "$APP" 2>/dev/null || \
     echo "(flatpak install of $APP failed — will need first-boot install)"
 done
@@ -112,19 +121,24 @@ echo ">>> Installing uv..."
 wget -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path 2>/dev/null || true
 
 echo ">>> Installing Fildem global menu..."
-wget -q -O /tmp/fildem.tar.gz https://github.com/sglbl/fildem-for-gnome46/archive/refs/heads/master.tar.gz
+wget -q -O /tmp/fildem.tar.gz "https://github.com/InledGroup/Fildem/archive/refs/heads/main.tar.gz"
 tar xzf /tmp/fildem.tar.gz -C /tmp
-cd /tmp/fildem-for-gnome46-master
-pip3 install --break-system-packages future fuzzysearch . 2>/dev/null || true
-mkdir -p /usr/share/gnome-shell/extensions
-cp -r fildemGMenu@gonza.com /usr/share/gnome-shell/extensions/
-cd /
-rm -rf /tmp/fildem* /tmp/fildem-for-gnome46-master
+FILDEM_DIR=$(ls -d /tmp/Fildem-* /tmp/fildem-* 2>/dev/null | head -1)
+if [ -n "$FILDEM_DIR" ]; then
+  cd "$FILDEM_DIR"
+  pip3 install --break-system-packages --no-deps . 2>/dev/null || true
+  if [ -d fildem@inled.es ]; then
+    mkdir -p /usr/share/gnome-shell/extensions
+    cp -r fildem@inled.es /usr/share/gnome-shell/extensions/
+  fi
+  cd /
+fi
+rm -rf /tmp/fildem* /tmp/Fildem-*
 # Enable extension via system dconf database
 mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
 [org/gnome/shell]
-enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'liquid-glass@thinkingcoding1231.gmail.com', 'fildemGMenu@gonza.com']
+enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'liquid-glass@thinkingcoding1231.gmail.com', 'fildem@inled.es']
 
 [org/gnome/desktop/wm/preferences]
 button-layout=':minimize,maximize,close'
@@ -294,6 +308,32 @@ for extdir in /usr/share/gnome-shell/extensions/*/schemas/; do
   fi
 done
 
+echo ">>> Creating first-login extension enabler..."
+cat > /usr/share/calcium-installer/enable-extensions.sh <<'EXTSCRIPT'
+#!/bin/bash
+MARKER="${HOME}/.config/calcium-extensions-enabled"
+[ -f "$MARKER" ] && exit 0
+sleep 2
+for ext in /usr/share/gnome-shell/extensions/*; do
+  ext_id=$(basename "$ext")
+  [ -n "$ext_id" ] && gnome-extensions enable "$ext_id" 2>/dev/null || true
+done
+touch "$MARKER"
+EXTSCRIPT
+chmod +x /usr/share/calcium-installer/enable-extensions.sh
+
+cat > /etc/xdg/autostart/calcium-enable-extensions.desktop <<'EXTENABLE'
+[Desktop Entry]
+Type=Application
+Exec=/usr/share/calcium-installer/enable-extensions.sh
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=3
+Name=Calcium Enable Extensions
+Comment=Enable GNOME Shell extensions on first login
+EXTENABLE
+
 echo ">>> Configuring LiveCD environment..."
 
 # Set Zsh as default shell
@@ -317,14 +357,15 @@ pidfile=/run/${RC_SVCNAME}.pid
 command_background=false
 depend() {
     need dbus
-    use elogind
+    need elogind
     after xdm-setup
 }
 GDMINIT
 chmod +x /etc/init.d/gdm
 
 # Patch PAM files: systemd-built binary GDM references pam_systemd.so but we use elogind
-sed -i 's/pam_systemd\.so/pam_elogind.so/g' /etc/pam.d/* 2>/dev/null || true
+find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/pam_systemd\.so/pam_elogind.so/g' {} + 2>/dev/null || true
+find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/systemd-logind/elogind/g' {} + 2>/dev/null || true
 
 # Add services to runlevels
 rc-update add gdm default
@@ -332,6 +373,16 @@ rc-update add dbus default
 rc-update add elogind default
 rc-update add cronie default
 rc-update add zram-init boot
+
+# Make ~/.local/bin in skeleton for user AppImages
+mkdir -p /etc/skel/.local/bin
+
+# Add ~/.local/bin to bash PATH (zsh already has it in /etc/zsh/zshrc)
+cat >> /etc/bash/bashrc <<'BASHRC'
+_local_bin="${HOME}/.local/bin"
+[ -d "$_local_bin" ] && PATH="${_local_bin}:${PATH}"
+unset _local_bin
+BASHRC
 
 # Remove passwords
 passwd -d root
