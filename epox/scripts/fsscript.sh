@@ -239,11 +239,11 @@ flatpak update -y --noninteractive 2>/dev/null || true
 CRON
 chmod +x /etc/cron.daily/flatpak-update
 
-cat > /etc/cron.weekly/gentoo-update <<'CRON'
+cat > /etc/cron.weekly/calcium-update <<'CRON'
 #!/bin/bash
-emerge --sync --quiet && emerge --update --deep --changed-use @world --quiet-build 2>/dev/null || true
+/usr/bin/calcium-update auto 2>/dev/null || true
 CRON
-chmod +x /etc/cron.weekly/gentoo-update
+chmod +x /etc/cron.weekly/calcium-update
 
 cat > /etc/cron.weekly/appimage-update <<'CRON'
 #!/bin/bash
@@ -252,6 +252,9 @@ for img in /opt/*/squashfs-root/AppRun; do
 done
 CRON
 chmod +x /etc/cron.weekly/appimage-update
+
+# Enable serial console for headless VM testing (CI)
+echo "s0:12345:respawn:/sbin/agetty 115200 ttyS0 vt100" >> /etc/inittab
 
 echo ">>> Configuring GNOME keyboard shortcuts..."
 cat > /etc/dconf/db/local.d/02-keyboard-shortcuts <<'SHORTCUTS'

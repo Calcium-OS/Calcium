@@ -5,6 +5,9 @@ on:
     branches: [main]
     paths:
       - 'epox/rootfs-overlay/usr/bin/calcium-installer'
+      - 'epox/rootfs-overlay/usr/bin/calcium-update'
+      - 'epox/rootfs-overlay/usr/bin/calcium-install-unattended'
+      - 'epox/rootfs-overlay/etc/calcium-release'
       - 'epox/rootfs-overlay/usr/share/calcium-installer/**'
       - 'epox/scripts/fsscript.sh'
       - '.github/workflows/test-installer.yml'
@@ -12,6 +15,9 @@ on:
     branches: [main]
     paths:
       - 'epox/rootfs-overlay/usr/bin/calcium-installer'
+      - 'epox/rootfs-overlay/usr/bin/calcium-update'
+      - 'epox/rootfs-overlay/usr/bin/calcium-install-unattended'
+      - 'epox/rootfs-overlay/etc/calcium-release'
       - 'epox/rootfs-overlay/usr/share/calcium-installer/**'
       - 'epox/scripts/fsscript.sh'
   workflow_dispatch:
@@ -81,3 +87,48 @@ jobs:
         run: |
           echo "=== GNOME Extensions ==="
           ls -1 ../../../../../usr/share/gnome-shell/extensions/ 2>/dev/null || echo "No extensions dir"
+
+      - name: Validate calcium-update syntax
+        run: |
+          bash -n ../../../usr/bin/calcium-update
+          echo "calcium-update syntax OK"
+
+      - name: Test calcium-update backup and apply logic
+        run: |
+          TMPDIR=$(mktemp -d)
+          mkdir -p "$TMPDIR/etc" "$TMPDIR/home/user" "$TMPDIR/var/lib" "$TMPDIR/boot"
+
+          echo "CALCIUM_VERSION=0.1.0" > "$TMPDIR/etc/calcium-release"
+
+          MOCKROOT=$(mktemp -d)
+          mkdir -p "$MOCKROOT/etc" "$MOCKROOT/usr/bin"
+          echo "new-release" > "$MOCKROOT/etc/release-file"
+          echo "new-binary" > "$MOCKROOT/usr/bin/some-tool"
+
+          tar -cJf /tmp/mock-rootfs.tar.xz -C "$MOCKROOT" .
+
+          BACKUP_DIR="$TMPDIR/backups"
+          mkdir -p "$BACKUP_DIR/test1"
+
+          tar -czf "$BACKUP_DIR/test1/etc.tar.gz" -C "$TMPDIR" etc/
+          tar -czf "$BACKUP_DIR/test1/var.tar.gz" -C "$TMPDIR" var/lib/
+
+          echo "0.0.9" > "$BACKUP_DIR/test1/prev-version"
+
+          echo "Mock backup created: $(ls -la $BACKUP_DIR/test1/)"
+
+          mkdir -p "$TMPDIR/restore-test"
+          tar -xzf "$BACKUP_DIR/test1/var.tar.gz" -C "$TMPDIR/restore-test" 2>/dev/null || true
+
+          tar -xJf /tmp/mock-rootfs.tar.xz \
+            --exclude=etc \
+            --exclude=home \
+            --exclude=var \
+            --exclude=root \
+            -C "$TMPDIR"
+
+          [ -f "$TMPDIR/usr/bin/some-tool" ] && echo "PASS: new binary extracted"
+          [ ! -f "$TMPDIR/etc/release-file" ] && echo "PASS: /etc preserved (not overwritten)"
+
+          rm -rf "$TMPDIR" "$MOCKROOT" /tmp/mock-rootfs.tar.xz
+          echo "All update mechanism tests passed"

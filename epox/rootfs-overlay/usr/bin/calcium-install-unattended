@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+"""Unattended installer for Calcium OS (CI/testing use).
+Supports LUKS encryption + efistub boot.
+
+Usage: calcium-install-unattended /path/to/config.json
+
+Config JSON:
+{
+  "disk": "/dev/vda",
+  "luks_password": "test",
+  "hostname": "calcium-test",
+  "username": "calcium",
+  "password": "test",
+  "root_password": "test",
+  "timezone": "UTC"
+}
+"""
+import sys, json, os, subprocess, glob, shutil
+
+
+def run(cmd, input_data=None):
+    result = subprocess.run(cmd, input=input_data, text=True, capture_output=True)
+    if result.returncode != 0:
+        print(f"FAILED: {' '.join(cmd)}")
+        print(result.stderr)
+        sys.exit(1)
+    return result.stdout.strip()
+
+
+def get_uuid(dev):
+    return run(["blkid", "-s", "UUID", "-o", "value", dev])
+
+
+def main():
+    config_file = sys.argv[1] if len(sys.argv) > 1 else "/etc/calcium-install.json"
+    with open(config_file) as f:
+        config = json.load(f)
+
+    disk = config["disk"]
+    luks_pass = config.get("luks_password", "calcium")
+    hostname = config.get("hostname", "calcium")
+    username = config.get("username", "calcium")
+    password = config.get("password", "calcium")
+    root_pass = config.get("root_password", password)
+    tz = config.get("timezone", "UTC")
+
+    mnt = "/mnt/calcium"
+    prefix = disk + ("p" if disk.startswith("/dev/nvme") or disk.startswith("/dev/mmcblk") else "")
+    esp_dev = f"{prefix}1"
+    root_dev = f"{prefix}2"
+    mapper = "/dev/mapper/calcium-root"
+
+    print("=== Partitioning ===")
+    run(["wipefs", "-a", disk])
+    run(["sgdisk", "-o", disk])
+    run(["sgdisk", "-n", "1:0:+512M", "-t", "1:ef00", disk])
+    run(["sgdisk", "-n", "2:0:0", "-t", "2:8300", disk])
+    subprocess.run(["udevadm", "settle"], capture_output=True)
+
+    print("=== Setting up LUKS ===")
+    print(f"Formatting {root_dev} with LUKS...")
+    proc = subprocess.Popen(
+        ["cryptsetup", "luksFormat", "--batch-mode", root_dev],
+        stdin=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    proc.communicate(input=f"{luks_pass}\n".encode())
+    if proc.returncode != 0:
+        print("luksFormat failed")
+        sys.exit(1)
+
+    print("Opening LUKS container...")
+    proc = subprocess.Popen(
+        ["cryptsetup", "open", root_dev, "calcium-root"],
+        stdin=subprocess.PIPE, stderr=subprocess.PIPE
+    )
+    proc.communicate(input=f"{luks_pass}\n".encode())
+    if proc.returncode != 0:
+        print("cryptsetup open failed")
+        sys.exit(1)
+
+    print("=== Formatting partitions ===")
+    run(["mkfs.fat", "-F", "32", esp_dev])
+    run(["mkfs.ext4", "-F", mapper])
+
+    print("=== Mounting ===")
+    os.makedirs(mnt, exist_ok=True)
+    run(["mount", mapper, mnt])
+    boot_mnt = os.path.join(mnt, "boot")
+    os.makedirs(boot_mnt, exist_ok=True)
+    run(["mount", esp_dev, boot_mnt])
+
+    print("=== Copying system ===")
+    excludes = [
+        "--exclude=/proc/*", "--exclude=/sys/*", "--exclude=/dev/*",
+        "--exclude=/run/*", "--exclude=/mnt/*", "--exclude=/tmp/*",
+        "--exclude=/media/*", "--exclude=/lost+found", "--exclude=/swapfile",
+        "--exclude=/boot/*",
+        "--exclude=/home/livecd/.cache/*", "--exclude=/root/.cache/*",
+        "--exclude=/var/cache/*", "--exclude=/var/tmp/*",
+        "--exclude=/var/db/repos/*", "--exclude=/var/log/*",
+    ]
+    run(["rsync", "-aHAX"] + excludes + ["/", mnt + "/"])
+
+    for d in ["proc", "sys", "dev", "run"]:
+        os.makedirs(os.path.join(mnt, d), exist_ok=True)
+
+    print("=== Copying boot files ===")
+    for entry in os.listdir("/boot"):
+        src = os.path.join("/boot", entry)
+        dst = os.path.join(boot_mnt, entry)
+        if os.path.isfile(src) and not os.path.islink(src):
+            shutil.copy2(src, dst)
+
+    print("=== Generating fstab & crypttab ===")
+    root_uuid = get_uuid(root_dev)
+    esp_uuid = get_uuid(esp_dev)
+
+    fstab_path = os.path.join(mnt, "etc", "fstab")
+    with open(fstab_path, "w") as f:
+        f.write(f"UUID={esp_uuid}  /boot  vfat  defaults,noatime  0 2\n")
+        f.write(f"/dev/mapper/calcium-root  /  ext4  defaults,noatime  0 1\n")
+
+    crypttab_path = os.path.join(mnt, "etc", "crypttab")
+    with open(crypttab_path, "w") as f:
+        f.write(f"calcium-root  UUID={root_uuid}  {luks_pass}\n")
+
+    print("=== Configuring system ===")
+    for d in ["proc", "sys", "dev"]:
+        run(["mount", "--bind", f"/{d}", os.path.join(mnt, d)])
+
+    hostname_path = os.path.join(mnt, "etc", "hostname")
+    with open(hostname_path, "w") as f:
+        f.write(hostname + "\n")
+    confd_host = os.path.join(mnt, "etc", "conf.d", "hostname")
+    with open(confd_host, "w") as f:
+        f.write(f'hostname="{hostname}"\n')
+
+    locale_path = os.path.join(mnt, "etc", "locale.conf")
+    with open(locale_path, "w") as f:
+        f.write('LANG="en_US.UTF-8"\nLC_COLLATE="C"\n')
+    envd = os.path.join(mnt, "etc", "env.d", "02locale")
+    with open(envd, "w") as f:
+        f.write('LANG="en_US.UTF-8"\nLC_COLLATE="C"\n')
+    run(["chroot", mnt, "locale-gen"])
+
+    tz_src = os.path.join(mnt, "usr", "share", "zoneinfo", tz)
+    if os.path.exists(tz_src):
+        os.unlink(os.path.join(mnt, "etc", "localtime"))
+        os.symlink(f"/usr/share/zoneinfo/{tz}", os.path.join(mnt, "etc", "localtime"))
+        with open(os.path.join(mnt, "etc", "timezone"), "w") as f:
+            f.write(tz + "\n")
+
+    run(["chroot", mnt, "useradd", "-m", "-G", "users,wheel,audio,video,cdrom,usb,portage,render",
+         "-s", "/bin/zsh", username])
+    run(["chroot", mnt, "sh", "-c", f"echo '{username}:{password}' | chpasswd"])
+    run(["chroot", mnt, "sh", "-c", f"echo 'root:{root_pass}' | chpasswd"])
+
+    sudoers_d = os.path.join(mnt, "etc", "sudoers.d")
+    os.makedirs(sudoers_d, exist_ok=True)
+    with open(os.path.join(sudoers_d, username), "w") as f:
+        f.write(f"{username} ALL=(ALL) ALL\n")
+
+    run(["chroot", mnt, "rc-update", "add", "gdm", "default"])
+    run(["chroot", mnt, "rc-update", "add", "dbus", "default"])
+    run(["chroot", mnt, "rc-update", "add", "elogind", "default"])
+    run(["chroot", mnt, "rc-update", "add", "dhcpcd", "default"])
+
+    print("=== Regenerating initramfs with LUKS support ===")
+    vmlinuz = None
+    initrd = None
+    for pattern in ["vmlinuz-*", "vmlinux-*", "kernel-*"]:
+        matches = sorted(glob.glob(os.path.join(boot_mnt, pattern)))
+        if matches:
+            vmlinuz = matches[-1]
+            break
+    if not vmlinuz and os.path.exists(os.path.join(boot_mnt, "vmlinuz")):
+        vmlinuz = os.path.join(boot_mnt, "vmlinuz")
+
+    if vmlinuz:
+        kver = os.path.basename(vmlinuz).replace("vmlinuz-", "").replace("vmlinux-", "").replace("kernel-", "")
+        if kver:
+            run(["chroot", mnt, "dracut", "--force", "--hostonly",
+                 "--add", "crypt lvm",
+                 f"/boot/initramfs-{kver}.img", kver])
+
+    for pattern in ["initramfs-*", "initrd-*", "initramfs-*.img", "initrd-*.img"]:
+        matches = sorted(glob.glob(os.path.join(boot_mnt, pattern)))
+        if matches:
+            initrd = matches[-1]
+            break
+    if not initrd and os.path.exists(os.path.join(boot_mnt, "initramfs.img")):
+        initrd = os.path.join(boot_mnt, "initramfs.img")
+
+    vmlinuz_name = os.path.basename(vmlinuz) if vmlinuz else None
+    initrd_name = os.path.basename(initrd) if initrd else None
+
+    print("=== Setting up bootloader (efistub) ===")
+    if vmlinuz_name and initrd_name:
+        boot_cmdline = (
+            f"root=/dev/mapper/calcium-root"
+            f" rd.luks.name={root_uuid}=calcium-root"
+            f" initrd=\\{initrd_name}"
+            f" console=ttyS0,115200 quiet ro"
+        )
+        run(["chroot", mnt, "efibootmgr", "--create", "--disk", disk,
+             "--part", "1", "--label", "Calcium OS",
+             "--loader", f"\\{vmlinuz_name}", "--unicode", boot_cmdline])
+
+    for d in ["proc", "sys", "dev"]:
+        run(["umount", "-l", os.path.join(mnt, d)])
+    run(["umount", "-l", boot_mnt])
+    run(["umount", "-l", mnt])
+    run(["cryptsetup", "close", "calcium-root"])
+
+    print("=== Installation complete! ===")
+
+
+if __name__ == "__main__":
+    main()

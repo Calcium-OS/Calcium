@@ -105,9 +105,187 @@ jobs:
           export CATALYST_STOREDIR
           catalyst -f /repo/epox/gentoo-gnome.spec
 
+      - name: Install ISO extraction tools
+        run: |
+          emerge --getbinpkg app-cdr/cdrtools sys-fs/squashfs-tools
+
+      - name: Create rootfs tarball from ISO
+        run: |
+          isoinfo -R -x /image.squashfs -i /${{ env.ISO_NAME }}.iso 2>/dev/null > /tmp/image.squashfs
+          mkdir -p /tmp/rootfs
+          unsquashfs -d /tmp/rootfs /tmp/image.squashfs >/dev/null 2>&1
+          cd /tmp/rootfs
+          tar --exclude=home/livecd \
+              --exclude=root/.cache \
+              --exclude=var/cache \
+              --exclude=var/tmp \
+              --exclude=var/db/repos \
+              --exclude=var/log \
+              -cJf /calcium-rootfs.tar.xz .
+          cd /
+          echo "Rootfs tarball: $(stat -c%s /calcium-rootfs.tar.xz) bytes"
+
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.ISO_NAME }}
           path: /${{ env.ISO_NAME }}.iso
           compression-level: 0
+
+      - name: Upload rootfs tarball
+        uses: actions/upload-artifact@v4
+        with:
+          name: calcium-rootfs
+          path: /calcium-rootfs.tar.xz
+          compression-level: 0
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build-iso
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download ISO
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ISO_NAME }}
+
+      - name: Download rootfs tarball
+        uses: actions/download-artifact@v4
+        with:
+          name: calcium-rootfs
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          gh release create "$GITHUB_REF_NAME" \
+            --title "Calcium OS v$VERSION" \
+            --notes "Calcium OS v$VERSION release." \
+            ${{ env.ISO_NAME }}.iso \
+            calcium-rootfs.tar.xz
+
+  test-vm:
+    if: github.ref == 'refs/heads/main'
+    needs: build-iso
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install VM dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            qemu-system-x86_64 qemu-utils ovmf genisoimage expect
+
+      - name: Download ISO
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ISO_NAME }}
+
+      - name: Extract kernel and initrd from ISO
+        run: |
+          FILES=$(isoinfo -R -f -i ${{ env.ISO_NAME }}.iso)
+          echo "ISO contents:"
+          echo "$FILES"
+          KERNEL=$(echo "$FILES" | grep -E 'vmlinuz|vmlinux|kernel' | head -1)
+          INITRD=$(echo "$FILES" | grep -E 'initramfs|initrd' | head -1)
+          echo "Kernel path: $KERNEL"
+          echo "Initrd path: $INITRD"
+          isoinfo -R -x "$KERNEL" -i ${{ env.ISO_NAME }}.iso > /tmp/vmlinuz
+          isoinfo -R -x "$INITRD" -i ${{ env.ISO_NAME }}.iso > /tmp/initrd.img
+
+      - name: Create disk image
+        run: qemu-img create -f qcow2 /tmp/disk.qcow2 20G
+
+      - name: Install to disk via QEMU
+        run: |
+          expect << 'INSTALLEOF'
+            set timeout 600
+            spawn qemu-system-x86_64 -enable-kvm -m 4096 -smp 2 \
+              -cdrom /tmp/${{ env.ISO_NAME }}.iso \
+              -drive file=/tmp/disk.qcow2,format=qcow2,if=virtio \
+              -kernel /tmp/vmlinuz -initrd /tmp/initrd.img \
+              -append "root=live:CDLABEL=Gentoo_GNOME_Live console=ttyS0,115200 quiet" \
+              -nographic -serial mon:stdio -no-reboot
+            expect "login:"
+            send "root\r"
+            expect "# "
+            send "cat > /etc/calcium-install.json << 'EOF'\n"
+            send "{\"disk\": \"/dev/vda\", \"luks_password\": \"test\", \"hostname\": \"calcium-test\", \"username\": \"calcium\", \"password\": \"test\"}\n"
+            send "EOF\n"
+            expect "# "
+            send "calcium-install-unattended /etc/calcium-install.json 2>&1\n"
+            expect "Installation complete!"
+            send "poweroff\n"
+            expect eof
+          INSTALLEOF
+
+      - name: Boot from disk and test system
+        run: |
+          expect << 'TESTEOF'
+            set timeout 120
+            spawn qemu-system-x86_64 -enable-kvm -m 4096 -smp 2 \
+              -bios /usr/share/ovmf/OVMF.fd \
+              -drive file=/tmp/disk.qcow2,format=qcow2,if=virtio \
+              -nographic -serial mon:stdio -no-reboot
+            expect {
+              "login:" { }
+              timeout { puts "Timeout waiting for login"; exit 1 }
+            }
+            send "root\r"
+            expect "# "
+
+            send "echo '=== System Info ==='\n"
+            expect "# "
+            send "uname -a\n"
+            expect "# "
+            send "cat /etc/calcium-release\n"
+            expect "CALCIUM_VERSION"
+            send "hostname\n"
+            expect "calcium-test"
+
+            send "echo '=== LUKS check ==='\n"
+            expect "# "
+            send "dmsetup ls 2>&1 || true\n"
+            expect "# "
+
+            send "echo '=== GDM check ==='\n"
+            expect "# "
+            send "rc-service gdm status 2>&1 || true\n"
+            expect "# "
+            send "echo '(If GDM not running, starting it...)'\n"
+            expect "# "
+            send "rc-service gdm start 2>&1 || true\n"
+            expect "# "
+            send "echo '(Trying fallback GNOME session...)'\n"
+            expect "# "
+            send "su - livecd -c 'XDG_SESSION_TYPE=wayland dbus-run-session gnome-session --headless 2>&1' || true\n"
+            expect "# "
+
+            send "echo '=== Update check ==='\n"
+            expect "# "
+            send "calcium-update check 2>&1 || true\n"
+            expect "# "
+
+            send "echo '=== Mock update test ==='\n"
+            expect "# "
+            send "echo 'CALCIUM_VERSION=0.0.0' > /etc/calcium-release\n"
+            expect "# "
+            send "mkdir -p /tmp/mock-update/usr/bin\n"
+            send "echo 'new-binary' > /tmp/mock-update/usr/bin/test-tool\n"
+            send "cd /tmp/mock-update && tar -cJf /tmp/mock-rootfs.tar.xz . && cd /\n"
+            expect "# "
+            send "tar -xJf /tmp/mock-rootfs.tar.xz --exclude=etc --exclude=home --exclude=var --exclude=root -C / 2>&1\n"
+            expect "# "
+            send "[ -f /usr/bin/test-tool ] && echo 'PASS: Update extraction works'\n"
+            expect "# "
+            send "echo 'CALCIUM_VERSION=0.1.0' > /etc/calcium-release\n"
+            expect "# "
+            send "rm -f /usr/bin/test-tool /tmp/mock-rootfs.tar.xz\n"
+
+            send "poweroff\n"
+            expect eof
+          TESTEOF

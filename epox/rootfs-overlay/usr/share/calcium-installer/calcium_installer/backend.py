@@ -223,7 +223,13 @@ class InstallerBackend:
         self._chroot(mountpoint, ["rc-update", "add", "zram-init", "boot"])
 
         if progress_callback:
-            progress_callback("configuring", 80, "Installing bootloader...")
+            progress_callback(
+                "configuring", 80, "Setting up Portage and update system..."
+            )
+        self._setup_portage(mountpoint, config)
+
+        if progress_callback:
+            progress_callback("configuring", 85, "Installing bootloader...")
         self._install_bootloader(mountpoint, config)
 
         for d in ["proc", "sys", "dev"]:
@@ -231,6 +237,56 @@ class InstallerBackend:
 
         if progress_callback:
             progress_callback("configuring", 100, "Configuration complete.")
+
+    def _setup_portage(self, mountpoint, config):
+        portage_dir = os.path.join(mountpoint, "etc", "portage")
+        os.makedirs(os.path.join(portage_dir, "repos.conf"), exist_ok=True)
+        os.makedirs(os.path.join(portage_dir, "package.accept_keywords"), exist_ok=True)
+        os.makedirs(os.path.join(portage_dir, "package.use"), exist_ok=True)
+
+        with open(os.path.join(portage_dir, "repos.conf", "gentoo.conf"), "w") as f:
+            f.write("[gentoo]\n")
+            f.write("location = /var/db/repos/gentoo\n")
+            f.write("sync-type = webrsync\n")
+            f.write("auto-sync = yes\n")
+
+        make_conf = os.path.join(portage_dir, "make.conf")
+        if not os.path.exists(make_conf):
+            with open(make_conf, "w") as f:
+                f.write('CHOST="x86_64-pc-linux-gnu"\n')
+                f.write('CFLAGS="-march=x86-64 -O2 -pipe"\n')
+                f.write('CXXFLAGS="${CFLAGS}"\n')
+                f.write('MAKEOPTS="-j$(nproc)"\n')
+                f.write(
+                    'USE="X gtk gnome dbus udev elogind openrc pam policykit udisks networkmanager bluetooth pulseaudio cups -systemd -consolekit"\n'
+                )
+                f.write('ACCEPT_LICENSE="*"\n')
+                f.write('ACCEPT_KEYWORDS="amd64 ~amd64"\n')
+                f.write(
+                    'PORTAGE_BINHOST="https://distfiles.gentoo.org/releases/amd64/binpackages/23.0"\n'
+                )
+                f.write('GENTOO_MIRRORS="https://distfiles.gentoo.org"\n')
+
+        with open(
+            os.path.join(portage_dir, "package.accept_keywords", "gnome"), "w"
+        ) as f:
+            f.write("gnome-base/* ~amd64\n")
+            f.write("x11-wm/* ~amd64\n")
+            f.write("sys-kernel/gentoo-kernel-bin ~amd64\n")
+
+        cron_daily = os.path.join(mountpoint, "etc", "cron.daily")
+        os.makedirs(cron_daily, exist_ok=True)
+        with open(os.path.join(cron_daily, "flatpak-update"), "w") as f:
+            f.write(
+                "#!/bin/bash\nflatpak update -y --noninteractive 2>/dev/null || true\n"
+            )
+        os.chmod(os.path.join(cron_daily, "flatpak-update"), 0o755)
+
+        cron_weekly = os.path.join(mountpoint, "etc", "cron.weekly")
+        os.makedirs(cron_weekly, exist_ok=True)
+        with open(os.path.join(cron_weekly, "calcium-update"), "w") as f:
+            f.write("#!/bin/bash\n/usr/bin/calcium-update auto 2>/dev/null || true\n")
+        os.chmod(os.path.join(cron_weekly, "calcium-update"), 0o755)
 
     def _install_bootloader(self, mountpoint, config):
         disk_path = config.get("disk_path", "")
