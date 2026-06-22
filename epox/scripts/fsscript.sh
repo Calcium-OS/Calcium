@@ -59,7 +59,7 @@ emerge --quiet --getbinpkg --noreplace \
   app-eselect/eselect-repository \
   gui-apps/wl-clipboard \
   sys-block/zram-init \
-  sys-fs/gptfdisk \
+  sys-apps/gptfdisk \
   net-misc/rsync \
   dev-python/pygobject \
   app-containers/lxc \

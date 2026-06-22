@@ -68,12 +68,6 @@ jobs:
           key: catalyst-${{ hashFiles('epox/portage/**', 'epox/gentoo-gnome.spec', 'epox/catalyst.conf', 'epox/scripts/fsscript.sh') }}
           restore-keys: catalyst-
 
-      - name: Cache portage snapshot
-        uses: actions/cache@v4
-        with:
-          path: /var/tmp/catalyst/snapshots
-          key: snapshot-${{ hashFiles('epox/gentoo-gnome.spec') }}
-
       - name: Download seed stage3
         run: |
           SEED_DIR="$CATALYST_STOREDIR"/builds/default
