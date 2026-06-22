@@ -95,6 +95,8 @@ printf '%s\n' \
   org.gnome.baobab \
   org.virt_manager.virt-manager \
   com.mattjakeman.ExtensionManager \
+  com.protonvpn.www # TODO - Change DNS to 1.1.1.1 as well.
+  org.torproject.torbrowser-launcher # "The next generation will be the real victims"
   app.devsuite.Ptyxis \
   | xargs -P 3 -I{} sh -c 'flatpak install --system -y --noninteractive flathub "$1" 2>/dev/null || echo "(flatpak install of $1 failed)"' -- {}
 
