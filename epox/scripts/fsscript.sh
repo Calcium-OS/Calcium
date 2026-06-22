@@ -49,7 +49,19 @@ emerge --quiet --getbinpkg --noreplace \
   dev-libs/keybinder \
   sys-process/cronie \
   app-eselect/eselect-repository \
-  gui-apps/wl-clipboard
+  gui-apps/wl-clipboard \
+  sys-block/zram-init
+
+echo ">>> Configuring zram swap..."
+cat > /etc/conf.d/zram-init <<'ZRAMCONF'
+load_on_start="yes"
+unload_on_stop="yes"
+num_devices="1"
+type0="swap"
+flag0=
+size0="2048"
+algo0=zstd
+ZRAMCONF
 
 echo ">>> Enabling Guru overlay and installing opencode-bin..."
 eselect repository enable guru 2>/dev/null || true
@@ -73,6 +85,10 @@ for APP in \
   flatpak install --system -y --noninteractive flathub "$APP" 2>/dev/null || \
     echo "(flatpak install of $APP failed — will need first-boot install)"
 done
+
+flatpak remote-add --system --if-not-exists mixtapes https://m-obeid.github.io/Mixtapes/mixtapes.flatpakrepo 2>/dev/null || true
+flatpak install --system -y --noninteractive mixtapes com.pocoguy.Muse 2>/dev/null || \
+  echo "(Muse flatpak install failed)"
 
 echo ">>> Installing lf file manager..."
 LF_URL=$(wget -q -O- "https://api.github.com/repos/gokcehan/lf/releases/latest" \
@@ -98,10 +114,13 @@ cd /
 rm -rf /tmp/fildem* /tmp/fildem-for-gnome46-master
 # Enable extension via system dconf database
 mkdir -p /etc/dconf/db/local.d
-cat > /etc/dconf/db/local.d/01-fildem <<'FILDEMCONF'
+cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
 [org/gnome/shell]
-enabled-extensions=['fildemGMenu@gonza.com']
-FILDEMCONF
+enabled-extensions=['dash-to-dock@micxgx.gmail.com', 'liquid-glass@thinkingcoding1231.gmail.com', 'fildemGMenu@gonza.com']
+
+[org/gnome/desktop/wm/preferences]
+button-layout=':minimize,maximize,close'
+EXTDCONF
 cat > /etc/dconf/profile/user <<'DCONFPROF'
 user-db:user
 system-db:local
@@ -182,6 +201,9 @@ if [ -n "$APPIMAGEUPDATE_URL" ]; then
     chmod +x /usr/local/bin/AppImageUpdate || \
     echo "(AppImageUpdate install failed)"
 fi
+
+echo ">>> Installing Zed text editor..."
+curl -fsSL https://zed.dev/install.sh 2>/dev/null | sh -s -- --no-modify-path 2>/dev/null || echo "(Zed install failed)"
 
 echo ">>> Setting up auto-update cron jobs..."
 mkdir -p /etc/cron.daily /etc/cron.weekly
@@ -296,6 +318,7 @@ rc-update add gdm default
 rc-update add dbus default
 rc-update add elogind default
 rc-update add cronie default
+rc-update add zram-init boot
 
 # Remove passwords
 passwd -d root
