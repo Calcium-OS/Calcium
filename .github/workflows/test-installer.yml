@@ -125,9 +125,7 @@ jobs:
           echo "All update mechanism tests passed"
 
   integration-test:
-    if: >
-      github.event_name == 'workflow_dispatch'
-      || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+    if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -139,12 +137,11 @@ jobs:
             qemu-system-x86_64 qemu-utils ovmf genisoimage expect
 
       - name: Download ISO from build
-        run: |
-          gh run download "$RUN_ID" --name "${{ env.ISO_NAME }}"
-          echo "Downloaded: $(ls -lh ${{ env.ISO_NAME }}.iso)"
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ github.event.workflow_run.id }}
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ISO_NAME }}
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
 
       - name: Extract kernel and initrd from ISO
         run: |
