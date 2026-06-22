@@ -1,174 +1,406 @@
-name: Build Gentoo ISO (GNOME + OpenRC + Zsh)
+#!/bin/bash
+# fsscript: package installation and LiveCD customization
+set -e
 
-on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '.github/workflows/test-installer.yml'
-  workflow_dispatch:
+echo ">>> Installing packages for GNOME desktop..."
 
-env:
-  ISO_NAME: gentoo-gnome-openrc-amd64
-  CATALYST_STOREDIR: /var/tmp/catalyst
-  STAGE3_BASE: https://distfiles.gentoo.org/releases/amd64/autobuilds
+mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask
 
-jobs:
-  build-iso:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    container:
-      image: gentoo/stage3:latest
-      options: --privileged --cap-add=ALL -v /dev:/dev
+printf '%s\n' \
+  'gnome-base/* ~amd64' \
+  'x11-wm/* ~amd64' \
+  'media-libs/gsound ~amd64' \
+  'sys-kernel/gentoo-kernel-bin ~amd64' \
+  'sys-kernel/linux-firmware ~amd64' \
+  'dev-libs/glib ~amd64' \
+  > /etc/portage/package.accept_keywords/gnome
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+printf '%s\n' \
+  '>=gnome-base/gdm-9999 elogind' \
+  '>=gnome-base/gnome-settings-daemon-9999 elogind' \
+  'sys-auth/pambase elogind gnome-keyring' \
+  'sys-libs/libcap static-libs' \
+  'llvm-core/libclc llvm_slot_22 llvm_slots_22' \
+  >> /etc/portage/package.use/gnome
 
-      - name: Initialize Portage tree and install catalyst
-        env:
-          PORTAGE_BINHOST: https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64
-        run: |
-          mkdir -p /etc/portage/repos.conf
-          printf '%s\n' '[gentoo]' 'location = /var/db/repos/gentoo' 'sync-type = webrsync' 'auto-sync = yes' > /etc/portage/repos.conf/gentoo.conf
-          emerge-webrsync
-          emerge --oneshot --getbinpkg sys-devel/bc
-          mkdir -p /etc/portage/package.accept_keywords
-          printf '%s\n' 'dev-util/catalyst ~amd64' > /etc/portage/package.accept_keywords/catalyst
-          mkdir -p /etc/portage/package.use
-          printf '%s\n' '>=sys-apps/util-linux-2.41.4-r1 python' '>=sys-boot/grub-2.14-r5 grub_platforms_efi-32' > /etc/portage/package.use/catalyst
-          emerge --getbinpkg catalyst dev-vcs/git sys-fs/squashfs-tools sys-boot/efibootmgr
+printf '%s\n' \
+  'gnome-base/gnome-extra-apps -games' \
+  >> /etc/portage/package.use/gnome
 
-      - name: Configure catalyst
-        run: |
-          mkdir -p "$CATALYST_STOREDIR" /var/tmp/ccache
-          cp -v epox/catalyst.conf /etc/catalyst/catalyst.conf
-          mkdir -p /etc/catalyst
-          cp -rv epox/portage /etc/catalyst/portage
-          cp -v epox/env/catalystrc /etc/catalyst/env.sh
+printf '%s\n' \
+  'gnome-extra/gnome-extensions-app' \
+  > /etc/portage/package.mask/gnome-extensions
 
-      - name: Set Gentoo mirrors
-        run: |
-          MIRRORS='GENTOO_MIRRORS="https://distfiles.gentoo.org https://mirror.rackspace.com/gentoo/ https://mirrors.rit.edu/gentoo/"'
-          echo "$MIRRORS"
-          sed -i "/^export GENTOO_MIRRORS/d" /etc/catalyst/env.sh
-          echo "export $MIRRORS" >> /etc/catalyst/env.sh
-          echo "$MIRRORS" >> /etc/portage/make.conf
+# Create system accounts cleanly without shell specifications to prevent warning hooks
+id gdm &>/dev/null || useradd -r gdm
+id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
-      - name: Cache portage binary packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            /var/cache/binpkgs
-            /var/tmp/catalyst/packages
-            /var/tmp/ccache
-          key: catalyst-${{ hashFiles('epox/portage/**', 'epox/gentoo-gnome.spec', 'epox/catalyst.conf', 'epox/scripts/fsscript.sh') }}
-          restore-keys: catalyst-
+emerge --quiet --getbinpkg --noreplace \
+  app-shells/zsh \
+  app-shells/zsh-syntax-highlighting \
+  gnome-base/gnome \
+  gnome-base/gdm \
+  gui-libs/display-manager-init \
+  x11-themes/gnome-themes-standard \
+  net-wireless/wpa_supplicant \
+  net-misc/dhcpcd \
+  sys-boot/efibootmgr \
+  app-portage/portage-utils \
+  app-editors/vim \
+  sys-process/btop \
+  app-admin/sudo \
+  net-misc/ntp \
+  sys-apps/dmidecode \
+  app-misc/screen \
+  sys-apps/pciutils \
+  sys-apps/usbutils \
+  sys-kernel/dracut \
+  sys-kernel/linux-firmware \
+  sys-apps/flatpak \
+  sys-fs/cryptsetup \
+  sys-fs/dosfstools \
+  net-misc/wget \
+  net-misc/yt-dlp \
+  sys-process/cronie \
+  app-eselect/eselect-repository \
+  gui-apps/wl-clipboard \
+  sys-block/zram-init \
+  sys-apps/gptfdisk \
+  net-misc/rsync \
+  dev-python/pygobject \
+  app-containers/lxc \
+  media-libs/gsound
 
-      - name: Get latest seed stage3 filename
-        id: seed-version
-        run: |
-          LATEST=$(wget -q -O- "$STAGE3_BASE/latest-stage3-amd64-openrc.txt" | sed -n '/^[0-9]/p' | head -1 | cut -d' ' -f1)
-          echo "filename=$LATEST" >> "$GITHUB_OUTPUT"
-          echo "Seed: $LATEST"
+echo ">>> Configuring zram swap..."
+cat > /etc/conf.d/zram-init <<'ZRAMCONF'
+load_on_start="yes"
+unload_on_stop="yes"
+num_devices="1"
+type0="swap"
+flag0=
+size0="2048"
+algo0=zstd
+ZRAMCONF
 
-      - name: Cache seed stage3
-        id: cache-seed
-        uses: actions/cache@v4
-        with:
-          path: /var/tmp/catalyst/builds/default/stage3-amd64-openrc-latest.tar.xz
-          key: seed-stage3-${{ steps.seed-version.outputs.filename }}
+echo ">>> Enabling Guru overlay and installing opencode-bin..."
+eselect repository enable guru 2>/dev/null || true
+emaint sync -r guru 2>/dev/null || true
+emerge --quiet --noreplace dev-util/opencode-bin || echo "(opencode-bin install failed)"
 
-      - name: Download seed stage3
-        if: steps.cache-seed.outputs.cache-hit != 'true'
-        run: |
-          mkdir -p /var/tmp/catalyst/builds/default
-          wget -q "$STAGE3_BASE/${{ steps.seed-version.outputs.filename }}" -O /var/tmp/catalyst/builds/default/stage3-amd64-openrc-latest.tar.xz
+echo ">>> Installing Flatpak apps..."
+flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
-      - name: Set up repository symlink for catalyst spec
-        run: |
-          ln -sf "$GITHUB_WORKSPACE" /repo
+# TODO - Change DNS to 1.1.1.1 as well.
+# Tor: "The next generation will be the real victims"
+printf '%s\n' \
+  com.vysp3r.ProtonPlus \
+  com.valvesoftware.Steam \
+  com.obsproject.Studio \
+  md.obsidian.Obsidian \
+  com.github.tchx84.Flatseal \
+  com.saivert.pwvucontrol \
+  io.missioncenter.MissionCenter \
+  org.gnome.baobab \
+  org.virt_manager.virt-manager \
+  com.mattjakeman.ExtensionManager \
+  com.protonvpn.www \
+  org.torproject.torbrowser-launcher \
+  app.devsuite.Ptyxis \
+  | xargs -P 3 -I{} sh -c 'flatpak install --system -y --noninteractive flathub "$1" 2>/dev/null || echo "(flatpak install of $1 failed)"' -- {}
 
-      - name: Create portage snapshot for catalyst
-        run: |
-          mkdir -p "$CATALYST_STOREDIR"/snapshots "$CATALYST_STOREDIR"/repos
-          git clone --quiet --depth=1 --bare \
-            -c gc.reflogExpire=0 -c gc.reflogExpireUnreachable=0 \
-            -c gc.rerereresolved=0 -c gc.rerereunresolved=0 \
-            -c gc.pruneExpire=now \
-            --branch=stable \
-            https://anongit.gentoo.org/git/repo/sync/gentoo.git \
-            "$CATALYST_STOREDIR"/repos/gentoo.git
-          SNAPSHOT="$CATALYST_STOREDIR"/snapshots/gentoo-stable.sqfs
-          git -C "$CATALYST_STOREDIR"/repos/gentoo.git archive --format=tar stable \
-            | tar2sqfs "$SNAPSHOT" -q -f -j1 -c gzip
-          echo "Snapshot created: $SNAPSHOT ($(stat -c%s "$SNAPSHOT") bytes)"
+flatpak remote-add --system --if-not-exists mixtapes https://m-obeid.github.io/Mixtapes/mixtapes.flatpakrepo 2>/dev/null || true
+flatpak install --system -y --noninteractive mixtapes com.pocoguy.Muse 2>/dev/null || \
+  echo "(Muse flatpak install failed)"
 
-      - name: Build livecd-stage2 ISO via catalyst
-        run: |
-          export CATALYST_STOREDIR
-          catalyst -f /repo/epox/gentoo-gnome.spec
+echo ">>> Installing lf file manager..."
+LF_URL=$(wget -q -O- "https://api.github.com/repos/gokcehan/lf/releases/latest" \
+  | grep "browser_download_url.*lf-linux-amd64.tar.gz" | head -1 | cut -d'"' -f4)
+if [ -n "$LF_URL" ]; then
+  wget -q -O /tmp/lf.tar.gz "$LF_URL"
+  tar xzf /tmp/lf.tar.gz -C /usr/bin/ lf
+  chmod +x /usr/bin/lf
+  rm -f /tmp/lf.tar.gz
+fi
 
-      - name: Install ISO extraction tools
-        run: |
-          emerge --getbinpkg app-cdr/cdrtools sys-fs/squashfs-tools
+echo ">>> Installing uv..."
+wget -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path 2>/dev/null || true
 
-      - name: Create rootfs tarball from ISO
-        run: |
-          isoinfo -R -x /image.squashfs -i /${{ env.ISO_NAME }}.iso 2>/dev/null > /tmp/image.squashfs
-          mkdir -p /tmp/rootfs
-          unsquashfs -d /tmp/rootfs /tmp/image.squashfs >/dev/null 2>&1
-          cd /tmp/rootfs
-          tar --exclude=home/livecd \
-              --exclude=root/.cache \
-              --exclude=var/cache \
-              --exclude=var/tmp \
-              --exclude=var/db/repos \
-              --exclude=var/log \
-              -cJf /calcium-rootfs.tar.xz .
-          cd /
-          echo "Rootfs tarball: $(stat -c%s /calcium-rootfs.tar.xz) bytes"
+echo ">>> Installing Fildem global menu..."
+wget -q -O /tmp/fildem.tar.gz "https://github.com/InledGroup/Fildem/archive/refs/heads/main.tar.gz"
+tar xzf /tmp/fildem.tar.gz -C /tmp
+FILDEM_DIR=$(ls -d /tmp/Fildem-* /tmp/fildem-* 2>/dev/null | head -1)
+if [ -n "$FILDEM_DIR" ]; then
+  cd "$FILDEM_DIR"
+  pip3 install --break-system-packages --no-deps . 2>/dev/null || true
+  if [ -d fildem@inled.es ]; then
+    mkdir -p /usr/share/gnome-shell/extensions
+    cp -r fildem@inled.es /usr/share/gnome-shell/extensions/
+  fi
+  cd /
+fi
+rm -rf /tmp/fildem* /tmp/Fildem-*
 
-      - name: Upload ISO artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.ISO_NAME }}
-          path: /${{ env.ISO_NAME }}.iso
-          compression-level: 0
+# Enable extension via system dconf database
+mkdir -p /etc/dconf/db/local.d
+cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
+[org/gnome/shell]
+enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'liquid-glass@thinkingcoding1231.gmail.com', 'fildem@inled.es', 'compiz-alike-magic-lamp-effect@hermes83.github.com']
+favorite-apps=['org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop']
 
-      - name: Upload rootfs tarball
-        uses: actions/upload-artifact@v4
-        with:
-          name: calcium-rootfs
-          path: /calcium-rootfs.tar.xz
-          compression-level: 0
+[org/gnome/desktop/interface]
+color-scheme='prefer-dark'
 
-  release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build-iso
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
+[org/gnome/desktop/wm/preferences]
+button-layout=':minimize,maximize,close'
+EXTDCONF
+cat > /etc/dconf/profile/user <<'DCONFPROF'
+user-db:user
+system-db:local
+DCONFPROF
+dconf update 2>/dev/null || true
 
-      - name: Download ISO
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ env.ISO_NAME }}
+# Configure GTK modules for appmenu support
+mkdir -p /etc/skel/.config/gtk-3.0
+cat > /etc/skel/.config/gtk-3.0/settings.ini <<'GTKINI'
+[Settings]
+gtk-modules=appmenu-gtk-module
+GTKINI
+cat > /etc/skel/.gtkrc-2.0 <<'GTKRC'
+gtk-modules="appmenu-gtk-module"
+GTKRC
 
-      - name: Download rootfs tarball
-        uses: actions/download-artifact@v4
-        with:
-          name: calcium-rootfs
+# Autostart fildem daemon for all users
+mkdir -p /etc/xdg/autostart
+cat > /etc/xdg/autostart/fildem.desktop <<'FILDEMAUTO'
+[Desktop Entry]
+Type=Application
+Exec=fildem
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+Name=Fildem Global Menu
+Comment=Run Fildem backend
+FILDEMAUTO
 
-      - name: Create release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          gh release create "$GITHUB_REF_NAME" \
-            --title "Calcium OS v$VERSION" \
-            --notes "Calcium OS v$VERSION release." \
-            ${{ env.ISO_NAME }}.iso \
-            calcium-rootfs.tar.xz
+echo ">>> Installing Sunshine..."
+SUNSHINE_URL=$(wget -q -O- https://api.github.com/repos/LizardByte/Sunshine/releases/latest \
+  | grep "browser_download_url.*AppImage" | head -1 | cut -d'"' -f4)
+if [ -n "$SUNSHINE_URL" ]; then
+  mkdir -p /opt/sunshine
+  wget -q -O /opt/sunshine/sunshine.AppImage "$SUNSHINE_URL"
+  chmod +x /opt/sunshine/sunshine.AppImage
+  cd /opt/sunshine
+  ./sunshine.AppImage --appimage-extract 2>/dev/null || true
+  cd /
+  if [ -f /opt/sunshine/squashfs-root/AppRun ]; then
+    ln -sf /opt/sunshine/squashfs-root/AppRun /opt/sunshine/sunshine
+  fi
+  rm -f /opt/sunshine/sunshine.AppImage
+fi
 
+echo ">>> Installing LibreWolf..."
+LIBREWOLF_URL=$(wget -q -O- "https://gitlab.com/api/v4/projects/librewolf-community%2Fbrowser%2Fappimage/releases/permalink/latest" 2>/dev/null | python3 -c "
+import json,sys
+try:
+    d=json.load(sys.stdin)
+    for a in d.get('assets',{}).get('links',[]):
+        if a['name'].endswith('.AppImage'):
+            print(a.get('direct_asset_url',''))
+            break
+except: pass
+" 2>/dev/null || true)
+if [ -n "$LIBREWOLF_URL" ]; then
+    mkdir -p /opt/librewolf
+    wget -q -O /opt/librewolf/librewolf.AppImage "$LIBREWOLF_URL" || true
+    if [ -f /opt/librewolf/librewolf.AppImage ]; then
+        chmod +x /opt/librewolf/librewolf.AppImage
+        cd /opt/librewolf
+        ./librewolf.AppImage --appimage-extract 2>/dev/null || true
+        if [ -f /opt/librewolf/squashfs-root/AppRun ]; then
+            ln -sf /opt/librewolf/squashfs-root/AppRun /opt/librewolf/librewolf
+        fi
+        rm -f /opt/librewolf/librewolf.AppImage
+    fi
+else
+    echo "(LibreWolf URL not found)"
+fi
 
+echo ">>> Installing AppImageUpdate..."
+APPIMAGEUPDATE_URL=$(wget -q -O- "https://api.github.com/repos/AppImage/AppImageUpdate/releases/latest" \
+  | grep "browser_download_url.*AppImageUpdate.*x86_64.*AppImage" | head -1 | cut -d'"' -f4)
+if [ -n "$APPIMAGEUPDATE_URL" ]; then
+    wget -q -O /usr/local/bin/AppImageUpdate "$APPIMAGEUPDATE_URL" && \
+    chmod +x /usr/local/bin/AppImageUpdate || \
+    echo "(AppImageUpdate install failed)"
+fi
+
+echo ">>> Installing Zed text editor..."
+curl -fsSL https://zed.dev/install.sh 2>/dev/null | sh -s -- --no-modify-path 2>/dev/null || echo "(Zed install failed)"
+
+echo ">>> Installing Waydroid (Android in a container)..."
+WAYDROID_VER="1.6.3"
+wget -q -O /tmp/waydroid.tar.gz "https://github.com/waydroid/waydroid/archive/refs/tags/${WAYDROID_VER}.tar.gz"
+tar xzf /tmp/waydroid.tar.gz -C /tmp
+cd "/tmp/waydroid-${WAYDROID_VER}" && make install 2>/dev/null || true
+cd /
+rm -rf /tmp/waydroid*
+
+echo ">>> Setting up auto-update cron jobs..."
+mkdir -p /etc/cron.daily /etc/cron.weekly
+
+cat > /etc/cron.daily/flatpak-update <<'CRON'
+#!/bin/bash
+flatpak update -y --noninteractive 2>/dev/null || true
+CRON
+chmod +x /etc/cron.daily/flatpak-update
+
+cat > /etc/cron.weekly/calcium-update <<'CRON'
+#!/bin/bash
+/usr/bin/calcium-update auto 2>/dev/null || true
+CRON
+chmod +x /etc/cron.weekly/calcium-update
+
+cat > /etc/cron.weekly/appimage-update <<'CRON'
+#!/bin/bash
+for img in /opt/*/squashfs-root/AppRun; do
+    [ -f "$img" ] && AppImageUpdate "$img" 2>/dev/null || true
+done
+CRON
+chmod +x /etc/cron.weekly/appimage-update
+
+# Enable serial console for headless VM testing (CI)
+echo "s0:12345:respawn:/sbin/agetty 115200 ttyS0 vt100" >> /etc/inittab
+
+echo ">>> Configuring GNOME keyboard shortcuts..."
+cat > /etc/dconf/db/local.d/02-keyboard-shortcuts <<'SHORTCUTS'
+[org/gnome/desktop/wm/keybindings]
+close=['<Alt>F4', '<Super>q']
+
+[org/gnome/settings-daemon/plugins/media-keys]
+custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/']
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0]
+name='Terminal'
+command='flatpak run app.devsuite.Ptyxis'
+binding='<Super>Return'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1]
+name='Files'
+command='nautilus -w'
+binding='<Super>r'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2]
+name='Audio Manager'
+command='flatpak run com.saivert.pwvucontrol'
+binding='<Super>m'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3]
+name='LibreWolf'
+command='/opt/librewolf/librewolf'
+binding='<Super>w'
+SHORTCUTS
+dconf update 2>/dev/null || true
+
+echo ">>> Setting default wallpaper..."
+WALLPAPER_URL="https://images.steamusercontent.com/ugc/8546979052418597/251C5932F5CCC0355D748AA1A19608A0625C26E8/"
+mkdir -p /usr/share/backgrounds/gnome
+wget -q -O /usr/share/backgrounds/gnome/calcium-wallpaper.jpg "$WALLPAPER_URL" || \
+  echo "(wallpaper download failed, using default)"
+
+cat > /usr/share/glib-2.0/schemas/99-calcium-wallpaper.gschema.override <<'SCHEMA'
+[org.gnome.desktop.background]
+picture-uri = 'file:///usr/share/backgrounds/gnome/calcium-wallpaper.jpg'
+picture-uri-dark = 'file:///usr/share/backgrounds/gnome/calcium-wallpaper.jpg'
+SCHEMA
+glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+echo ">>> Compiling extension schemas..."
+for extdir in /usr/share/gnome-shell/extensions/*/schemas/; do
+  if [ -n "$(find "$extdir" -maxdepth 1 -name '*.gschema.xml' -print -quit 2>/dev/null)" ]; then
+    glib-compile-schemas "$extdir" 2>/dev/null || true
+  fi
+done
+
+echo ">>> Creating first-login extension enabler..."
+cat > /usr/share/calcium-installer/enable-extensions.sh <<'EXTSCRIPT'
+#!/bin/bash
+MARKER="${HOME}/.config/calcium-extensions-enabled"
+[ -f "$MARKER" ] && exit 0
+sleep 2
+for ext in /usr/share/gnome-shell/extensions/*; do
+  ext_id=$(basename "$ext")
+  [ -n "$ext_id" ] && gnome-extensions enable "$ext_id" 2>/dev/null || true
+done
+touch "$MARKER"
+EXTSCRIPT
+chmod +x /usr/share/calcium-installer/enable-extensions.sh
+
+cat > /etc/xdg/autostart/calcium-enable-extensions.desktop <<'EXTENABLE'
+[Desktop Entry]
+Type=Application
+Exec=/usr/share/calcium-installer/enable-extensions.sh
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=3
+Name=Calcium Enable Extensions
+Comment=Enable GNOME Shell extensions on first login
+EXTENABLE
+
+echo ">>> Configuring LiveCD environment..."
+
+# Set Zsh as default shell
+chsh -s /bin/zsh root
+chsh -s /bin/zsh livecd
+
+# Configure OpenRC's standard display-manager settings
+cat > /etc/conf.d/display-manager <<'DM'
+DISPLAYMANAGER="gdm"
+GDM_WAYLAND=1
+GDM_XSESSION=/etc/X11/Sessions/gnome
+DM
+
+# Patch PAM files: systemd-built binary GDM references pam_systemd.so but we use elogind
+find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/pam_systemd\.so/pam_elogind.so/g' {} + 2>/dev/null || true
+find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/systemd-logind/elogind/g' {} + 2>/dev/null || true
+
+# Add services to runlevels
+rc-update add display-manager default
+rc-update add dbus default
+rc-update add elogind default
+rc-update add cronie default
+rc-update add zram-init boot
+
+# Make ~/.local/bin in skeleton for user AppImages
+mkdir -p /etc/skel/.local/bin
+
+# Add ~/.local/bin to bash PATH (zsh already has it in /etc/zsh/zshrc)
+cat >> /etc/bash/bashrc <<'BASHRC'
+_local_bin="${HOME}/.local/bin"
+[ -d "$_local_bin" ] && PATH="${_local_bin}:${PATH}"
+unset _local_bin
+BASHRC
+
+# Remove passwords
+passwd -d root
+passwd -d livecd
+
+# Sudo for live user
+mkdir -p /etc/sudoers.d
+echo "livecd ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/liveuser
+
+echo ">>> Cleaning up to reduce ISO size..."
+# Remove portage tree, binpkgs, ccache (already covered by livecd/rm, but belt-and-suspenders)
+rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
+# Remove pip cache from fildem install
+rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
+# Remove flatpak repo cache (not needed at runtime)
+rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
+# Remove non-English locales (save ~100MB+)
+find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
+# Remove gtk-doc (developer docs, ~50MB)
+rm -rf /usr/share/gtk-doc 2>/dev/null || true
+# Remove info pages
+rm -rf /usr/share/info 2>/dev/null || true
+
+echo ">>> LiveCD configuration complete"
