@@ -98,7 +98,8 @@ for APP in \
   io.missioncenter.MissionCenter \
   org.gnome.baobab \
   org.virt_manager.virt-manager \
-  com.mattjakeman.ExtensionManager; do
+  com.mattjakeman.ExtensionManager \
+  app.devsuite.Ptyxis; do
   flatpak install --system -y --noninteractive flathub "$APP" 2>/dev/null || \
     echo "(flatpak install of $APP failed — will need first-boot install)"
 done
@@ -268,7 +269,7 @@ custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybin
 
 [org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0]
 name='Terminal'
-command='gnome-terminal'
+command='flatpak run app.devsuite.Ptyxis'
 binding='<Super>Return'
 
 [org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1]
