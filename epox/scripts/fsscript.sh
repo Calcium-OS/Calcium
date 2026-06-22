@@ -249,7 +249,8 @@ dconf update 2>/dev/null || true
 echo ">>> Setting default wallpaper..."
 WALLPAPER_URL="https://images.steamusercontent.com/ugc/8546979052418597/251C5932F5CCC0355D748AA1A19608A0625C26E8/"
 mkdir -p /usr/share/backgrounds/gnome
-wget -q -O /usr/share/backgrounds/gnome/calcium-wallpaper.jpg "$WALLPAPER_URL"
+wget -q -O /usr/share/backgrounds/gnome/calcium-wallpaper.jpg "$WALLPAPER_URL" || \
+  echo "(wallpaper download failed, using default)"
 
 cat > /usr/share/glib-2.0/schemas/99-calcium-wallpaper.gschema.override <<'SCHEMA'
 [org.gnome.desktop.background]
