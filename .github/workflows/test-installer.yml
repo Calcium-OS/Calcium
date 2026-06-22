@@ -80,13 +80,13 @@ jobs:
 
       - name: Validate fsscript.sh syntax
         run: |
-          bash -n ../../scripts/fsscript.sh
+          bash -n ../../../../scripts/fsscript.sh
           echo "fsscript.sh syntax OK"
 
       - name: List all extensions
         run: |
           echo "=== GNOME Extensions ==="
-          ls -1 ../../../../../usr/share/gnome-shell/extensions/ 2>/dev/null || echo "No extensions dir"
+          ls -1 ../../../usr/share/gnome-shell/extensions/ 2>/dev/null || echo "No extensions dir"
 
       - name: Validate calcium-update syntax
         run: |

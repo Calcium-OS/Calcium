@@ -3,6 +3,8 @@ name: Build Gentoo ISO (GNOME + OpenRC + Zsh)
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '.github/workflows/test-installer.yml'
   workflow_dispatch:
 
 env:
