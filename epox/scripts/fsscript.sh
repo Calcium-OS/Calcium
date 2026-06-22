@@ -21,16 +21,16 @@ printf '%s\n' \
   'sys-auth/pambase elogind gnome-keyring' \
   'sys-libs/libcap static-libs' \
   'gnome-base/gnome-extra-apps -games' \
+  'llvm-core/libclc llvm_slot_22' \
   >> /etc/portage/package.use/gnome
 
 printf '%s\n' \
   'gnome-extra/gnome-extensions-app' \
   > /etc/portage/package.mask/gnome-extensions
 
-# Pre-create system users and groups so that packages (like LXC) compiling 
-# with strict system constraints do not fail during install phases
+# Create system accounts cleanly without shell specifications to prevent warning hooks
 id gdm &>/dev/null || useradd -r gdm
-id livecd &>/dev/null || useradd -m -s /bin/zsh -G users,wheel,audio,video,cdrom,usb,portage,render livecd
+id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
 emerge --quiet --getbinpkg --noreplace \
   app-shells/zsh \
@@ -87,6 +87,8 @@ emerge --quiet --noreplace dev-util/opencode-bin || echo "(opencode-bin install 
 echo ">>> Installing Flatpak apps..."
 flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
+# TODO - Change DNS to 1.1.1.1 as well.
+# Tor: "The next generation will be the real victims"
 printf '%s\n' \
   com.vysp3r.ProtonPlus \
   com.valvesoftware.Steam \
@@ -118,7 +120,7 @@ if [ -n "$LF_URL" ]; then
 fi
 
 echo ">>> Installing uv..."
-wget -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path 2>/dev/null || true
+wget (link available in full source) -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path 2>/dev/null || true
 
 echo ">>> Installing Fildem global menu..."
 wget -q -O /tmp/fildem.tar.gz "https://github.com/InledGroup/Fildem/archive/refs/heads/main.tar.gz"
@@ -344,11 +346,11 @@ EXTENABLE
 
 echo ">>> Configuring LiveCD environment..."
 
-# Set Zsh as default shell for users
+# Set Zsh as default shell
 chsh -s /bin/zsh root
 chsh -s /bin/zsh livecd
 
-# FIXED: Configure Gentoo OpenRC unified display manager instead of an standalone script loop
+# Configure OpenRC's standard display-manager settings
 cat > /etc/conf.d/display-manager <<'DM'
 DISPLAYMANAGER="gdm"
 GDM_WAYLAND=1
@@ -359,7 +361,7 @@ DM
 find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/pam_systemd\.so/pam_elogind.so/g' {} + 2>/dev/null || true
 find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/systemd-logind/elogind/g' {} + 2>/dev/null || true
 
-# FIXED: Replaced legacy gdm service configuration with standard OpenRC display-manager protocol
+# Add services to runlevels
 rc-update add display-manager default
 rc-update add dbus default
 rc-update add elogind default
@@ -385,7 +387,6 @@ mkdir -p /etc/sudoers.d
 echo "livecd ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/liveuser
 
 echo ">>> Cleaning up to reduce ISO size..."
-
 # Remove portage tree, binpkgs, ccache (already covered by livecd/rm, but belt-and-suspenders)
 rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
 # Remove pip cache from fildem install
