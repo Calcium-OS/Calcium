@@ -4,7 +4,7 @@ set -e
 
 echo ">>> Installing packages for GNOME desktop..."
 
-mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use
+mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask
 
 printf '%s\n' \
   'gnome-base/* ~amd64' \
@@ -12,11 +12,14 @@ printf '%s\n' \
   'media-libs/gsound ~amd64' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
+  'dev-libs/glib ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
   '>=gnome-base/gdm-9999 elogind' \
   '>=gnome-base/gnome-settings-daemon-9999 elogind' \
+  'sys-auth/pambase elogind gnome-keyring' \
+  'sys-libs/libcap static-libs' \
   >> /etc/portage/package.use/gnome
 
 printf '%s\n' \
@@ -298,4 +301,120 @@ dconf update 2>/dev/null || true
 
 echo ">>> Setting default wallpaper..."
 WALLPAPER_URL="https://images.steamusercontent.com/ugc/8546979052418597/251C5932F5CCC0355D748AA1A19608A0625C26E8/"
-mkdir -p /usr/
+mkdir -p /usr/share/backgrounds/gnome
+wget -q -O /usr/share/backgrounds/gnome/calcium-wallpaper.jpg "$WALLPAPER_URL" || \
+  echo "(wallpaper download failed, using default)"
+
+cat > /usr/share/glib-2.0/schemas/99-calcium-wallpaper.gschema.override <<'SCHEMA'
+[org.gnome.desktop.background]
+picture-uri = 'file:///usr/share/backgrounds/gnome/calcium-wallpaper.jpg'
+picture-uri-dark = 'file:///usr/share/backgrounds/gnome/calcium-wallpaper.jpg'
+SCHEMA
+glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+echo ">>> Compiling extension schemas..."
+for extdir in /usr/share/gnome-shell/extensions/*/schemas/; do
+  if [ -n "$(find "$extdir" -maxdepth 1 -name '*.gschema.xml' -print -quit 2>/dev/null)" ]; then
+    glib-compile-schemas "$extdir" 2>/dev/null || true
+  fi
+done
+
+echo ">>> Creating first-login extension enabler..."
+cat > /usr/share/calcium-installer/enable-extensions.sh <<'EXTSCRIPT'
+#!/bin/bash
+MARKER="${HOME}/.config/calcium-extensions-enabled"
+[ -f "$MARKER" ] && exit 0
+sleep 2
+for ext in /usr/share/gnome-shell/extensions/*; do
+  ext_id=$(basename "$ext")
+  [ -n "$ext_id" ] && gnome-extensions enable "$ext_id" 2>/dev/null || true
+done
+touch "$MARKER"
+EXTSCRIPT
+chmod +x /usr/share/calcium-installer/enable-extensions.sh
+
+cat > /etc/xdg/autostart/calcium-enable-extensions.desktop <<'EXTENABLE'
+[Desktop Entry]
+Type=Application
+Exec=/usr/share/calcium-installer/enable-extensions.sh
+Hidden=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=3
+Name=Calcium Enable Extensions
+Comment=Enable GNOME Shell extensions on first login
+EXTENABLE
+
+echo ">>> Configuring LiveCD environment..."
+
+# Set Zsh as default shell
+chsh -s /bin/zsh root
+chsh -s /bin/zsh livecd
+
+cat > /etc/conf.d/gdm <<'GDM'
+DISPLAYMANAGER="gdm"
+GDM_WAYLAND=1
+GDM_XSESSION=/etc/X11/Sessions/gnome
+GDM
+
+# Create GDM OpenRC init script (binary gdm from binhost lacks it when built with systemd)
+cat > /etc/init.d/gdm <<'GDMINIT'
+#!/sbin/openrc-run
+supervisor=supervise-daemon
+description="GNOME Display Manager"
+command=/usr/sbin/gdm
+command_args="--no-daemon"
+pidfile=/run/${RC_SVCNAME}.pid
+command_background=false
+depend() {
+    need dbus
+    need elogind
+    after xdm-setup
+}
+GDMINIT
+chmod +x /etc/init.d/gdm
+
+# Patch PAM files: systemd-built binary GDM references pam_systemd.so but we use elogind
+find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/pam_systemd\.so/pam_elogind.so/g' {} + 2>/dev/null || true
+find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/systemd-logind/elogind/g' {} + 2>/dev/null || true
+
+# Add services to runlevels
+rc-update add gdm default
+rc-update add dbus default
+rc-update add elogind default
+rc-update add cronie default
+rc-update add zram-init boot
+
+# Make ~/.local/bin in skeleton for user AppImages
+mkdir -p /etc/skel/.local/bin
+
+# Add ~/.local/bin to bash PATH (zsh already has it in /etc/zsh/zshrc)
+cat >> /etc/bash/bashrc <<'BASHRC'
+_local_bin="${HOME}/.local/bin"
+[ -d "$_local_bin" ] && PATH="${_local_bin}:${PATH}"
+unset _local_bin
+BASHRC
+
+# Remove passwords
+passwd -d root
+passwd -d livecd
+
+# Sudo for live user
+mkdir -p /etc/sudoers.d
+echo "livecd ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/liveuser
+
+echo ">>> Cleaning up to reduce ISO size..."
+# Remove portage tree, binpkgs, ccache (already covered by livecd/rm, but belt-and-suspenders)
+rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
+# Remove pip cache from fildem install
+rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
+# Remove flatpak repo cache (not needed at runtime)
+rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
+# Remove non-English locales (save ~100MB+)
+find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
+# Remove gtk-doc (developer docs, ~50MB)
+rm -rf /usr/share/gtk-doc 2>/dev/null || true
+# Remove info pages
+rm -rf /usr/share/info 2>/dev/null || true
+
+echo ">>> LiveCD configuration complete"
