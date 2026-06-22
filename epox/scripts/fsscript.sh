@@ -138,7 +138,7 @@ rm -rf /tmp/fildem* /tmp/Fildem-*
 mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
 [org/gnome/shell]
-enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'liquid-glass@thinkingcoding1231.gmail.com', 'fildem@inled.es']
+enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'liquid-glass@thinkingcoding1231.gmail.com', 'fildem@inled.es', 'compiz-alike-magic-lamp-effect@hermes83.github.com']
 
 [org/gnome/desktop/wm/preferences]
 button-layout=':minimize,maximize,close'
