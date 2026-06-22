@@ -16,15 +16,12 @@ printf '%s\n' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
-  '>=gnome-base/gdm-9999 elogind' \
-  '>=gnome-base/gnome-settings-daemon-9999 elogind' \
+  'gnome-base/gdm elogind' \
+  'gnome-base/gnome-settings-daemon elogind' \
   'sys-auth/pambase elogind gnome-keyring' \
   'sys-libs/libcap static-libs' \
-  'llvm-core/libclc llvm_slot_22 llvm_slots_22' \
-  >> /etc/portage/package.use/gnome
-
-printf '%s\n' \
   'gnome-base/gnome-extra-apps -games' \
+  'llvm-core/libclc llvm_slot_22 llvm_slots_22' \
   >> /etc/portage/package.use/gnome
 
 printf '%s\n' \
