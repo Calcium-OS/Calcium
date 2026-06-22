@@ -97,6 +97,7 @@ cp -r fildemGMenu@gonza.com /usr/share/gnome-shell/extensions/
 cd /
 rm -rf /tmp/fildem* /tmp/fildem-for-gnome46-master
 # Enable extension via system dconf database
+mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-fildem <<'FILDEMCONF'
 [org/gnome/shell]
 enabled-extensions=['fildemGMenu@gonza.com']

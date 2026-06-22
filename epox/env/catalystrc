@@ -5,4 +5,5 @@ export GENTOO_MIRRORS="https://distfiles.gentoo.org"
 # Install tools needed by catalyst's kmerge.sh before kernel build
 emerge --quiet --getbinpkg --oneshot --noreplace \
   app-portage/portage-utils \
-  sys-fs/lvm2
+  sys-fs/lvm2 \
+  sys-apps/busybox
