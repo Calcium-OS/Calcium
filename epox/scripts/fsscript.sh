@@ -50,7 +50,13 @@ emerge --quiet --getbinpkg --noreplace \
   sys-process/cronie \
   app-eselect/eselect-repository \
   gui-apps/wl-clipboard \
-  sys-block/zram-init
+  sys-block/zram-init \
+  sys-fs/gptfdisk \
+  net-misc/rsync \
+  dev-python/pygobject \
+  app-containers/lxc \
+  dev-db/libgda \
+  media-libs/gsound
 
 echo ">>> Configuring zram swap..."
 cat > /etc/conf.d/zram-init <<'ZRAMCONF'
@@ -81,7 +87,9 @@ for APP in \
   md.obsidian.Obsidian \
   com.github.tchx84.Flatseal \
   com.saivert.pwvucontrol \
-  com.github.hluk.copyq; do
+  io.missioncenter.MissionCenter \
+  org.gnome.baobab \
+  org.virt_manager.virt-manager; do
   flatpak install --system -y --noninteractive flathub "$APP" 2>/dev/null || \
     echo "(flatpak install of $APP failed — will need first-boot install)"
 done
@@ -116,7 +124,7 @@ rm -rf /tmp/fildem* /tmp/fildem-for-gnome46-master
 mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
 [org/gnome/shell]
-enabled-extensions=['dash-to-dock@micxgx.gmail.com', 'liquid-glass@thinkingcoding1231.gmail.com', 'fildemGMenu@gonza.com']
+enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'liquid-glass@thinkingcoding1231.gmail.com', 'fildemGMenu@gonza.com']
 
 [org/gnome/desktop/wm/preferences]
 button-layout=':minimize,maximize,close'
@@ -205,6 +213,14 @@ fi
 echo ">>> Installing Zed text editor..."
 curl -fsSL https://zed.dev/install.sh 2>/dev/null | sh -s -- --no-modify-path 2>/dev/null || echo "(Zed install failed)"
 
+echo ">>> Installing Waydroid (Android in a container)..."
+WAYDROID_VER="1.6.3"
+wget -q -O /tmp/waydroid.tar.gz "https://github.com/waydroid/waydroid/archive/refs/tags/${WAYDROID_VER}.tar.gz"
+tar xzf /tmp/waydroid.tar.gz -C /tmp
+cd "/tmp/waydroid-${WAYDROID_VER}" && make install 2>/dev/null || true
+cd /
+rm -rf /tmp/waydroid*
+
 echo ">>> Setting up auto-update cron jobs..."
 mkdir -p /etc/cron.daily /etc/cron.weekly
 
@@ -234,7 +250,7 @@ cat > /etc/dconf/db/local.d/02-keyboard-shortcuts <<'SHORTCUTS'
 close=['<Alt>F4', '<Super>q']
 
 [org/gnome/settings-daemon/plugins/media-keys]
-custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5/']
+custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/']
 
 [org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0]
 name='Terminal'
@@ -255,16 +271,6 @@ binding='<Super>m'
 name='LibreWolf'
 command='/opt/librewolf/librewolf'
 binding='<Super>w'
-
-[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4]
-name='System Monitor'
-command='gnome-terminal -- btop'
-binding='<Super>h'
-
-[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5]
-name='Clipboard Manager'
-command='flatpak run com.github.hluk.copyq'
-binding='<Super>comma'
 SHORTCUTS
 dconf update 2>/dev/null || true
 
@@ -280,6 +286,13 @@ picture-uri = 'file:///usr/share/backgrounds/gnome/calcium-wallpaper.jpg'
 picture-uri-dark = 'file:///usr/share/backgrounds/gnome/calcium-wallpaper.jpg'
 SCHEMA
 glib-compile-schemas /usr/share/glib-2.0/schemas/
+
+echo ">>> Compiling extension schemas..."
+for extdir in /usr/share/gnome-shell/extensions/*/schemas/; do
+  if [ -n "$(find "$extdir" -maxdepth 1 -name '*.gschema.xml' -print -quit 2>/dev/null)" ]; then
+    glib-compile-schemas "$extdir" 2>/dev/null || true
+  fi
+done
 
 echo ">>> Configuring LiveCD environment..."
 

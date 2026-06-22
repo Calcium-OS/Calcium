@@ -1,0 +1,84 @@
+name: Test Installer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'epox/rootfs-overlay/usr/bin/calcium-installer'
+      - 'epox/rootfs-overlay/usr/share/calcium-installer/**'
+      - 'epox/scripts/fsscript.sh'
+      - '.github/workflows/test-installer.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'epox/rootfs-overlay/usr/bin/calcium-installer'
+      - 'epox/rootfs-overlay/usr/share/calcium-installer/**'
+      - 'epox/scripts/fsscript.sh'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: epox/rootfs-overlay/usr/share/calcium-installer
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq \
+            python3-gi \
+            python3-gi-cairo \
+            gir1.2-gtk-4.0 \
+            gir1.2-adw-1 \
+            libgda-5.0-sqlite \
+            libgsound-dev \
+            bash
+
+      - name: Check Python syntax
+        run: |
+          python3 -m py_compile calcium_installer/__init__.py
+          python3 -m py_compile calcium_installer/app.py
+          python3 -m py_compile calcium_installer/backend.py
+          python3 -m py_compile calcium_installer/views.py
+          python3 -m py_compile ../../../../usr/bin/calcium-installer
+
+      - name: Test module imports
+        run: |
+          python3 -c "
+          import sys
+          sys.path.insert(0, '.')
+          from calcium_installer.backend import InstallerBackend
+          from calcium_installer.views import WelcomePage, DiskPage, UserPage, SummaryPage, InstallPage, FinishPage
+          from calcium_installer.app import CalciumInstallerApp
+          print('All modules imported successfully')
+          "
+
+      - name: Test backend disk detection (read-only)
+        run: |
+          python3 -c "
+          import sys, json
+          sys.path.insert(0, '.')
+          from calcium_installer.backend import InstallerBackend
+          backend = InstallerBackend()
+          disks = backend.get_disks()
+          print(f'Disk detection works: {len(disks)} disks found')
+          for d in disks:
+              assert 'path' in d, 'Missing path'
+              assert 'size' in d, 'Missing size'
+              assert 'name' in d, 'Missing name'
+          print('Disk data structure valid')
+          "
+
+      - name: Validate fsscript.sh syntax
+        run: |
+          bash -n ../../scripts/fsscript.sh
+          echo "fsscript.sh syntax OK"
+
+      - name: List all extensions
+        run: |
+          echo "=== GNOME Extensions ==="
+          ls -1 ../../../../../usr/share/gnome-shell/extensions/ 2>/dev/null || echo "No extensions dir"
