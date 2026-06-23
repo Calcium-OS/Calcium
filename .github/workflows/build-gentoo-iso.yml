@@ -110,7 +110,6 @@ jobs:
         run: |
           ln -sf "$GITHUB_WORKSPACE" /repo
 
-      # ✅ FIXED SNAPSHOT STEP (ONLY REAL FIX)
       - name: Create portage snapshot for catalyst
         run: |
           set -euo pipefail
@@ -123,8 +122,9 @@ jobs:
 
           SNAPSHOT="$CATALYST_STOREDIR"/snapshots/gentoo-stable.sqfs
 
-          tar -C "$CATALYST_STOREDIR"/repos \
-            -cf - gentoo \
+          # Tar the contents of the directory (.) instead of the directory itself
+          tar -C "$CATALYST_STOREDIR"/repos/gentoo \
+            -cf - . \
             | tar2sqfs "$SNAPSHOT" -q -f -j1 -c gzip
 
       - name: Build livecd-stage2 ISO via catalyst
