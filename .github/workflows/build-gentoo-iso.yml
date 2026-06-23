@@ -21,11 +21,13 @@ jobs:
             spec_file: epox/gentoo-gnome.spec
             iso_name: gentoo-gnome-openrc-amd64
             portage_dir: epox/portage
+            portage_confdir: /etc/catalyst/portage
             target: gnome
           - name: server
             spec_file: epox/gentoo-server.spec
             iso_name: gentoo-server-openrc-amd64
             portage_dir: epox/portage-server
+            portage_confdir: /etc/catalyst/portage-server
             target: server
 
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -54,7 +56,7 @@ jobs:
           mkdir -p "$CATALYST_STOREDIR" /var/tmp/ccache
           cp -v epox/catalyst.conf /etc/catalyst/catalyst.conf
           mkdir -p /etc/catalyst
-          cp -rv ${{ matrix.variant.portage_dir }} /etc/catalyst/portage-${{ matrix.variant.target }}
+          cp -rv ${{ matrix.variant.portage_dir }} ${{ matrix.variant.portage_confdir }}
           cp -v epox/env/catalystrc /etc/catalyst/env.sh
 
       - name: Set Gentoo mirrors
