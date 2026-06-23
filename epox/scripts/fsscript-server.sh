@@ -21,7 +21,7 @@ emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
   net-wireless/wpa_supplicant \
   sys-boot/efibootmgr \
   app-portage/portage-utils \
-  app-editors/nano
+  app-editors/nano \
   sys-process/btop \
   app-admin/sudo \
   net-misc/ntp \
