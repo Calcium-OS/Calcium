@@ -372,6 +372,8 @@ rc-update add elogind default
 rc-update add cronie default
 rc-update add tailscale default
 rc-update add zram-init boot
+rc-service tailscale start
+rc-update add tailscale default 
 
 # Make ~/.local/bin in skeleton for user AppImages
 mkdir -p /etc/skel/.local/bin
