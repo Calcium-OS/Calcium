@@ -23,13 +23,9 @@ printf '%s\n' \
   'gnome-extra/gnome-extensions-app' \
   > /etc/portage/package.mask/gnome-extensions
 
-# Create system accounts cleanly without shell specifications to prevent warning hooks
+# Create system accounts cleanly (GDM explicitly required before emerge)
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
-
-# Pre-upgrade packages that need abi_x86_32 to resolve slot conflicts
-emerge --quiet --getbinpkg --binpkg-respect-use=n --oneshot \
-  dev-libs/libffi dev-libs/expat dev-libs/glib 2>/dev/null || true
 
 emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
   app-shells/zsh \
@@ -43,6 +39,7 @@ emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
   sys-boot/efibootmgr \
   app-portage/portage-utils \
   app-editors/vim \
+  sys-process/htop \
   sys-process/btop \
   app-admin/sudo \
   net-misc/ntp \
@@ -53,10 +50,12 @@ emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
   sys-kernel/dracut \
   sys-kernel/linux-firmware \
   sys-apps/flatpak \
+  dev-util/dialog \
   sys-fs/cryptsetup \
   sys-fs/dosfstools \
   net-misc/wget \
   net-misc/yt-dlp \
+  dev-libs/keybinder \
   sys-process/cronie \
   app-eselect/eselect-repository \
   gui-apps/wl-clipboard \
@@ -87,8 +86,6 @@ emerge --quiet --noreplace dev-util/opencode-bin || echo "(opencode-bin install 
 echo ">>> Installing Flatpak apps..."
 flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
-# TODO - Change DNS to 1.1.1.1 as well.
-# Tor: "The next generation will be the real victims"
 printf '%s\n' \
   com.vysp3r.ProtonPlus \
   com.valvesoftware.Steam \
@@ -350,26 +347,51 @@ echo ">>> Configuring LiveCD environment..."
 chsh -s /bin/zsh root
 chsh -s /bin/zsh livecd
 
-# Configure OpenRC's standard display-manager settings
+# Configure OpenRC standard display-manager configurations
 cat > /etc/conf.d/display-manager <<'DM'
 DISPLAYMANAGER="gdm"
 GDM_WAYLAND=1
 GDM_XSESSION=/etc/X11/Sessions/gnome
 DM
 
+# Legacy Fallback setup block for OpenRC from old script (Fixes binary GDM setups)
+cat > /etc/conf.d/gdm <<'GDM'
+DISPLAYMANAGER="gdm"
+GDM_WAYLAND=1
+GDM_XSESSION=/etc/X11/Sessions/gnome
+GDM
+
+cat > /etc/init.d/gdm <<'GDMINIT'
+#!/sbin/openrc-run
+supervisor=supervise-daemon
+description="GNOME Display Manager"
+command=/usr/sbin/gdm
+command_args="--no-daemon"
+pidfile=/run/${RC_SVCNAME}.pid
+command_background=false
+depend() {
+    need dbus
+    use elogind
+    after xdm-setup
+}
+GDMINIT
+chmod +x /etc/init.d/gdm
+
 # Patch PAM files: systemd-built binary GDM references pam_systemd.so but we use elogind
 find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/pam_systemd\.so/pam_elogind.so/g' {} + 2>/dev/null || true
 find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/systemd-logind/elogind/g' {} + 2>/dev/null || true
 
 # Add services to runlevels
-rc-update add display-manager default
+rc-update add display-manager default 2>/dev/null || true
+rc-update add gdm default 2>/dev/null || true
 rc-update add dbus default
 rc-update add elogind default
 rc-update add cronie default
-rc-update add tailscale default
+rc-update add tailscale default 2>/dev/null || true
 rc-update add zram-init boot
-rc-service tailscale start
-rc-update add tailscale default 
+
+# Initialize background services
+rc-service tailscale start 2>/dev/null || true
 
 # Make ~/.local/bin in skeleton for user AppImages
 mkdir -p /etc/skel/.local/bin
@@ -390,17 +412,11 @@ mkdir -p /etc/sudoers.d
 echo "livecd ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/liveuser
 
 echo ">>> Cleaning up to reduce ISO size..."
-# Remove portage tree, binpkgs, ccache (already covered by livecd/rm, but belt-and-suspenders)
 rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
-# Remove pip cache from fildem install
 rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
-# Remove flatpak repo cache (not needed at runtime)
 rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
-# Remove non-English locales (save ~100MB+)
 find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
-# Remove gtk-doc (developer docs, ~50MB)
 rm -rf /usr/share/gtk-doc 2>/dev/null || true
-# Remove info pages
 rm -rf /usr/share/info 2>/dev/null || true
 
 echo ">>> LiveCD configuration complete"
