@@ -6,12 +6,8 @@ echo ">>> Installing packages for server edition..."
 
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.license
 
-# REMOVED testing (~amd64) keywords to enforce stable packages only.
-# If you still want to explicitly use gentoo-kernel-bin and linux-firmware, 
-# they must be the stable versions available in the repository.
-printf '%s\n' \
-  'linux-fw-redistributable' \
-  > /etc/portage/package.license/server
+mkdir -p /etc/portage/package.license
+echo "sys-kernel/linux-firmware linux-fw-redistributable" > /etc/portage/package.license/server
 
 # Create system accounts
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
