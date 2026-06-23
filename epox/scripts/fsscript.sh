@@ -15,6 +15,7 @@ printf '%s\n' \
   'dev-libs/glib ~amd64' \
   'dev-libs/gobject-introspection ~amd64' \
   'dev-libs/gobject-introspection-common ~amd64' \
+  'dev-libs/gjs ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
@@ -36,7 +37,7 @@ printf '%s\n' \
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
-emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace --autounmask-write --autounmask-continue \
+CONFIG_PROTECT="" emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace --autounmask-write \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
