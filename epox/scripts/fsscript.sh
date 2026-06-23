@@ -9,7 +9,7 @@ mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/port
 printf '%s\n' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
-  > /etc/portage/package.accept_keywords/gnome
+  >> /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
   'gnome-base/gdm elogind' \
@@ -23,14 +23,10 @@ printf '%s\n' \
   'dev-libs/libffi abi_x86_32' \
   '>=sys-libs/zlib-ng-2.3.3 compat abi_x86_32' \
   '>=dev-libs/elfutils-0.195 abi_x86_32' \
-  'llvm-core/llvm abi_x86_32 llvm_targets_AMDGPU' \
-  'sys-devel/clang abi_x86_32' \
   >> /etc/portage/package.use/gnome
 
 printf '%s\n' \
   'gnome-extra/gnome-extensions-app' \
-  'media-tv/totem' \
-  'media-plugins/gst-plugins-faad' \
   > /etc/portage/package.mask/gnome-extensions
 
 # Create system accounts cleanly without shell specifications to prevent warning hooks
