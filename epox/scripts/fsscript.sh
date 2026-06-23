@@ -2,37 +2,29 @@
 # fsscript: package installation and LiveCD customization
 set -e
 
-echo ">>> Installing packages for GNOME desktop (Stable GNOME 48)..."
+echo ">>> Installing packages for GNOME desktop..."
 
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask
 
-# Keep only necessary kernel/firmware keywords if testing branch is preferred for hardware support
+# PRESERVED FROM OLD SCRIPT: Crucial Portage configuration to avoid broken GNOME dependencies
 printf '%s\n' \
+  'gnome-base/gnome ~amd64' \
+  'gnome-base/gdm ~amd64' \
+  'gnome-base/gnome-shell ~amd64' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
-# Lock USE flags to stable GNOME 48 target constraints instead of 9999 (live git)
 printf '%s\n' \
-  '>=gnome-base/gdm-48 elogind' \
-  '>=gnome-base/gnome-settings-daemon-48 elogind' \
+  '>=gnome-base/gdm-9999 elogind' \
+  '>=gnome-base/gnome-settings-daemon-9999 elogind' \
   > /etc/portage/package.use/gnome
 
-# Required multilib flags for flatpak, fonts, and steam-adjacent dependencies
-printf '%s\n' \
-  'sys-apps/util-linux abi_x86_32' \
-  'dev-libs/expat abi_x86_32' \
-  > /etc/portage/package.use/multilib
-
-printf '%s\n' \
-  'gnome-extra/gnome-extensions-app' \
-  > /etc/portage/package.mask/gnome-extensions
-
-# Create system accounts cleanly (GDM explicitly required before emerge)
+# FROM NEW SCRIPT: Create system accounts cleanly BEFORE emerge
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
-# Added --autounmask flags to handle minor environmental divergence during non-interactive runs
+# MERGED package list with the new script's flags (--autounmask) and additions (tailscale, grub, rsync, etc.)
 emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
   --autounmask=y --autounmask-write=y \
   app-shells/zsh \
@@ -93,6 +85,7 @@ emerge --quiet --noreplace dev-util/opencode-bin || echo "(opencode-bin install 
 echo ">>> Installing Flatpak apps..."
 flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
+# MERGED Flatpak lists using the faster parallel installation loop from the new script
 printf '%s\n' \
   com.vysp3r.ProtonPlus \
   com.valvesoftware.Steam \
@@ -100,6 +93,7 @@ printf '%s\n' \
   md.obsidian.Obsidian \
   com.github.tchx84.Flatseal \
   com.saivert.pwvucontrol \
+  com.github.hluk.copyq \
   io.missioncenter.MissionCenter \
   org.gnome.baobab \
   org.virt_manager.virt-manager \
@@ -127,6 +121,7 @@ echo ">>> Installing uv..."
 wget -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path 2>/dev/null || true
 
 echo ">>> Installing Fildem global menu..."
+# FROM NEW SCRIPT: Uses the cleaner installation paths and repository
 wget -q -O /tmp/fildem.tar.gz "https://github.com/InledGroup/Fildem/archive/refs/heads/main.tar.gz"
 tar xzf /tmp/fildem.tar.gz -C /tmp
 FILDEM_DIR=$(ls -d /tmp/Fildem-* /tmp/fildem-* 2>/dev/null | head -1)
@@ -141,7 +136,7 @@ if [ -n "$FILDEM_DIR" ]; then
 fi
 rm -rf /tmp/fildem* /tmp/Fildem-*
 
-# Enable extension via system dconf database
+# FROM NEW SCRIPT: Refreshed dconf entries including Dark Mode preference and additional extensions
 mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
 [org/gnome/shell]
@@ -238,6 +233,7 @@ fi
 echo ">>> Installing Zed text editor..."
 curl -fsSL https://zed.dev/install.sh 2>/dev/null | sh -s -- --no-modify-path 2>/dev/null || echo "(Zed install failed)"
 
+# FROM NEW SCRIPT: Added Waydroid Container framework
 echo ">>> Installing Waydroid (Android in a container)..."
 WAYDROID_VER="1.6.3"
 wget -q -O /tmp/waydroid.tar.gz "https://github.com/waydroid/waydroid/archive/refs/tags/${WAYDROID_VER}.tar.gz"
@@ -255,6 +251,7 @@ flatpak update -y --noninteractive 2>/dev/null || true
 CRON
 chmod +x /etc/cron.daily/flatpak-update
 
+# FROM NEW SCRIPT: Standardized to the custom calcium-update utility framework
 cat > /etc/cron.weekly/calcium-update <<'CRON'
 #!/bin/bash
 /usr/bin/calcium-update auto 2>/dev/null || true
@@ -269,16 +266,17 @@ done
 CRON
 chmod +x /etc/cron.weekly/appimage-update
 
-# Enable serial console for headless VM testing (CI)
+# FROM NEW SCRIPT: Serial console connection patch for automated CI/headless instances
 echo "s0:12345:respawn:/sbin/agetty 115200 ttyS0 vt100" >> /etc/inittab
 
+# MERGED keyboard shortcuts targeting Ptyxis alongside system utilities from the old script
 echo ">>> Configuring GNOME keyboard shortcuts..."
 cat > /etc/dconf/db/local.d/02-keyboard-shortcuts <<'SHORTCUTS'
 [org/gnome/desktop/wm/keybindings]
 close=['<Alt>F4', '<Super>q']
 
 [org/gnome/settings-daemon/plugins/media-keys]
-custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/']
+custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5/']
 
 [org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0]
 name='Terminal'
@@ -299,6 +297,16 @@ binding='<Super>m'
 name='LibreWolf'
 command='/opt/librewolf/librewolf'
 binding='<Super>w'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4]
+name='System Monitor'
+command='flatpak run app.devsuite.Ptyxis -- btop'
+binding='<Super>h'
+
+[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5]
+name='Clipboard Manager'
+command='flatpak run com.github.hluk.copyq'
+binding='<Super>comma'
 SHORTCUTS
 dconf update 2>/dev/null || true
 
@@ -315,6 +323,7 @@ picture-uri-dark = 'file:///usr/share/backgrounds/gnome/calcium-wallpaper.jpg'
 SCHEMA
 glib-compile-schemas /usr/share/glib-2.0/schemas/
 
+# FROM NEW SCRIPT: Explicit compilation loops for shell extension assets
 echo ">>> Compiling extension schemas..."
 for extdir in /usr/share/gnome-shell/extensions/*/schemas/; do
   if [ -n "$(find "$extdir" -maxdepth 1 -name '*.gschema.xml' -print -quit 2>/dev/null)" ]; then
@@ -322,7 +331,9 @@ for extdir in /usr/share/gnome-shell/extensions/*/schemas/; do
   fi
 done
 
+# FROM NEW SCRIPT: Run structural first-login extension enabler scripts
 echo ">>> Creating first-login extension enabler..."
+mkdir -p /usr/share/calcium-installer
 cat > /usr/share/calcium-installer/enable-extensions.sh <<'EXTSCRIPT'
 #!/bin/bash
 MARKER="${HOME}/.config/calcium-extensions-enabled"
@@ -354,14 +365,14 @@ echo ">>> Configuring LiveCD environment..."
 chsh -s /bin/zsh root
 chsh -s /bin/zsh livecd
 
-# Configure OpenRC standard display-manager configurations
+# FROM NEW SCRIPT: Modern OpenRC display-manager layout configuration
 cat > /etc/conf.d/display-manager <<'DM'
 DISPLAYMANAGER="gdm"
 GDM_WAYLAND=1
 GDM_XSESSION=/etc/X11/Sessions/gnome
 DM
 
-# Legacy Fallback setup block for OpenRC from old script (Fixes binary GDM setups)
+# PRESERVED PRE-EMPTIVE FIX: Fallback legacy targets for OpenRC environment handling
 cat > /etc/conf.d/gdm <<'GDM'
 DISPLAYMANAGER="gdm"
 GDM_WAYLAND=1
@@ -384,7 +395,7 @@ depend() {
 GDMINIT
 chmod +x /etc/init.d/gdm
 
-# Patch PAM files: systemd-built binary GDM references pam_systemd.so but we use elogind
+# FROM NEW SCRIPT: Safer directory execution lookup loop for PAM files
 find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/pam_systemd\.so/pam_elogind.so/g' {} + 2>/dev/null || true
 find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/systemd-logind/elogind/g' {} + 2>/dev/null || true
 
@@ -397,13 +408,11 @@ rc-update add cronie default
 rc-update add tailscale default 2>/dev/null || true
 rc-update add zram-init boot
 
-# Initialize background services
+# FROM NEW SCRIPT: Spin up headless network daemons
 rc-service tailscale start 2>/dev/null || true
 
-# Make ~/.local/bin in skeleton for user AppImages
+# FROM NEW SCRIPT: User system profile paths mapping for portable tools
 mkdir -p /etc/skel/.local/bin
-
-# Add ~/.local/bin to bash PATH (zsh already has it in /etc/zsh/zshrc)
 cat >> /etc/bash/bashrc <<'BASHRC'
 _local_bin="${HOME}/.local/bin"
 [ -d "$_local_bin" ] && PATH="${_local_bin}:${PATH}"
