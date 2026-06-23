@@ -9,4 +9,5 @@ media-libs/mesa vaapi
 x11-base/xorg-server udev
 app-shells/zsh completion
 gnome-base/gnome-extra-apps -games
+sys-boot/grub grub_platforms_efi-64
 

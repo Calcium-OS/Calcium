@@ -373,6 +373,7 @@ class InstallerBackend:
                 "--target=x86_64-efi",
                 "--efi-directory=/boot",
                 "--bootloader-id=Calcium",
+                "--removable",
             ],
         )
         self._chroot(mountpoint, ["grub-mkconfig", "-o", "/boot/grub/grub.cfg"])

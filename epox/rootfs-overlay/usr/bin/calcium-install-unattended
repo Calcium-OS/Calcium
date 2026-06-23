@@ -60,7 +60,7 @@ def main():
     print("=== Setting up LUKS ===")
     print(f"Formatting {root_dev} with LUKS...")
     proc = subprocess.Popen(
-        ["cryptsetup", "luksFormat", "--batch-mode", root_dev],
+        ["cryptsetup", "luksFormat", "--batch-mode", "--key-file=-", root_dev],
         stdin=subprocess.PIPE, stderr=subprocess.PIPE
     )
     proc.communicate(input=f"{luks_pass}\n".encode())
@@ -70,7 +70,7 @@ def main():
 
     print("Opening LUKS container...")
     proc = subprocess.Popen(
-        ["cryptsetup", "open", root_dev, "calcium-root"],
+        ["cryptsetup", "open", "--key-file=-", root_dev, "calcium-root"],
         stdin=subprocess.PIPE, stderr=subprocess.PIPE
     )
     proc.communicate(input=f"{luks_pass}\n".encode())
@@ -194,7 +194,7 @@ def main():
     vmlinuz_name = os.path.basename(vmlinuz) if vmlinuz else None
     initrd_name = os.path.basename(initrd) if initrd else None
 
-    print("=== Setting up bootloader (efistub) ===")
+    print("=== Setting up bootloader ===")
     if vmlinuz_name and initrd_name:
         boot_cmdline = (
             f"root=/dev/mapper/calcium-root"
@@ -202,9 +202,19 @@ def main():
             f" initrd=\\{initrd_name}"
             f" console=ttyS0,115200 quiet ro"
         )
-        run(["chroot", mnt, "efibootmgr", "--create", "--disk", disk,
-             "--part", "1", "--label", "Calcium OS",
-             "--loader", f"\\{vmlinuz_name}", "--unicode", boot_cmdline])
+        try:
+            run(["chroot", mnt, "efibootmgr", "--create", "--disk", disk,
+                 "--part", "1", "--label", "Calcium OS",
+                 "--loader", f"\\{vmlinuz_name}", "--unicode", boot_cmdline])
+        except Exception:
+            print("efibootmgr failed, falling back to GRUB with --removable...")
+            grub_default = os.path.join(mnt, "etc", "default", "grub")
+            with open(grub_default, "a") as f:
+                f.write(f'\nGRUB_CMDLINE_LINUX="rd.luks.name={root_uuid}=calcium-root console=ttyS0,115200 quiet ro"\n')
+            run(["chroot", mnt, "grub-install",
+                 "--target=x86_64-efi", "--efi-directory=/boot",
+                 "--bootloader-id=Calcium", "--removable"])
+            run(["chroot", mnt, "grub-mkconfig", "-o", "/boot/grub/grub.cfg"])
 
     for d in ["proc", "sys", "dev"]:
         run(["umount", "-l", os.path.join(mnt, d)])

@@ -66,7 +66,8 @@ emerge --quiet --getbinpkg --noreplace \
   net-misc/rsync \
   dev-python/pygobject \
   app-containers/lxc \
-  media-libs/gsound
+  media-libs/gsound \
+  sys-boot/grub
 
 echo ">>> Configuring zram swap..."
 cat > /etc/conf.d/zram-init <<'ZRAMCONF'

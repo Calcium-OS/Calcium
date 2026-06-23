@@ -1,0 +1,11 @@
+NAME="Calcium OS"
+ID=calcium
+PRETTY_NAME="Calcium OS"
+VERSION="0.1.0"
+VERSION_ID=0.1.0
+VERSION_CODENAME=calcium
+HOME_URL="https://github.com/Calcium-OS/Calcium"
+SUPPORT_URL="https://github.com/Calcium-OS/Calcium/issues"
+BUG_REPORT_URL="https://github.com/Calcium-OS/Calcium/issues"
+ID_LIKE=gentoo
+LOGO=calcium
