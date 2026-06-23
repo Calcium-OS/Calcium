@@ -57,6 +57,7 @@ jobs:
           mkdir -p "$CATALYST_STOREDIR"
           cp -v epox/catalyst.conf /etc/catalyst/catalyst.conf
           mkdir -p /etc/catalyst
+          mkdir -p /var/tmp/ccache /var/tmp/catalyst/packages /var/cache/binpkgs
           cp -rv ${{ matrix.variant.portage_dir }} ${{ matrix.variant.portage_confdir }}
           cp -v epox/env/catalystrc /etc/catalyst/env.sh
 
