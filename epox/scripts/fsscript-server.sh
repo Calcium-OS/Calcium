@@ -6,11 +6,9 @@ echo ">>> Installing packages for server edition..."
 
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.license
 
-printf '%s\n' \
-  'sys-kernel/gentoo-kernel-bin ~amd64' \
-  'sys-kernel/linux-firmware ~amd64' \
-  > /etc/portage/package.accept_keywords/server
-
+# REMOVED testing (~amd64) keywords to enforce stable packages only.
+# If you still want to explicitly use gentoo-kernel-bin and linux-firmware, 
+# they must be the stable versions available in the repository.
 printf '%s\n' \
   'linux-fw-redistributable' \
   > /etc/portage/package.license/server
@@ -46,6 +44,10 @@ emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
   net-vpn/tailscale \
   sys-boot/grub
 
+# Note: We omitted sys-kernel/gentoo-kernel-bin from emerge because it will 
+# now fallback to whatever stable kernel is defined by your profile, or you can 
+# explicitly add it back if a stable version exists in your sync tree.
+
 echo ">>> Setting up Zsh as default shell..."
 chsh -s /bin/zsh root
 chsh -s /bin/zsh livecd
@@ -55,8 +57,6 @@ rc-update add sshd default
 rc-update add dhcpcd default
 rc-update add tailscale default
 rc-update add cronie default
-rc-service tailscale start
-rc-update add tailscale default 
 
 echo ">>> Configuring sudo for live user..."
 mkdir -p /etc/sudoers.d
