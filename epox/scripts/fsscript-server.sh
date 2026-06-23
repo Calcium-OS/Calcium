@@ -14,7 +14,7 @@ printf '%s\n' \
 # Create system accounts
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
-emerge --quiet --getbinpkg --noreplace \
+emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   net-misc/dhcpcd \

@@ -5,7 +5,7 @@ target: livecd-stage2
 version_stamp: server-openrc
 rel_type: default
 
-profile: default/linux/amd64/23.0/openrc
+profile: default/linux/amd64/23.0
 
 snapshot_treeish: stable
 subarch: amd64
