@@ -6,7 +6,6 @@ echo ">>> Installing packages for GNOME desktop..."
 
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask
 
-# PRESERVED FROM OLD SCRIPT: Crucial Portage configuration to avoid broken GNOME dependencies
 printf '%s\n' \
   'gnome-base/gnome ~amd64' \
   'gnome-base/gdm ~amd64' \
@@ -19,14 +18,15 @@ printf '%s\n' \
   '>=gnome-base/gdm-9999 elogind' \
   '>=gnome-base/gnome-settings-daemon-9999 elogind' \
   > /etc/portage/package.use/gnome
-
-# FROM NEW SCRIPT: Create system accounts cleanly BEFORE emerge
+  
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
-# MERGED package list with the new script's flags (--autounmask) and additions (tailscale, grub, rsync, etc.)
-emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
-  --autounmask=y --autounmask-write=y \
+#emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
+  #--autounmask=y --autounmask-write=y \
+
+
+  emerge --quiet --getbinpkg --noreplace \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
