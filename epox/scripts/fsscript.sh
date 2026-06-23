@@ -17,6 +17,7 @@ printf '%s\n' \
   'dev-libs/gobject-introspection ~amd64' \
   'dev-libs/gobject-introspection-common ~amd64' \
   'dev-libs/gjs ~amd64' \
+  'media-libs/glycin ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
@@ -26,8 +27,9 @@ printf '%s\n' \
   'sys-libs/libcap static-libs' \
   'gnome-base/gnome-extra-apps -games' \
   'llvm-core/libclc llvm_slot_22' \
-  '>=dev-libs/expat-2.8.1 abi_x86_32' \
+  'dev-libs/expat abi_x86_32' \
   '>=dev-libs/glib-2.88.1 abi_x86_32' \
+  'dev-libs/libffi abi_x86_32' \
   >> /etc/portage/package.use/gnome
 
 printf '%s\n' \
@@ -37,6 +39,10 @@ printf '%s\n' \
 # Create system accounts cleanly without shell specifications to prevent warning hooks
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
+
+# Pre-upgrade packages that need abi_x86_32 to resolve slot conflicts
+emerge --quiet --getbinpkg --binpkg-respect-use=n --oneshot \
+  dev-libs/libffi dev-libs/expat '>=dev-libs/glib-2.88.1' 2>/dev/null || true
 
 emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
   app-shells/zsh \
