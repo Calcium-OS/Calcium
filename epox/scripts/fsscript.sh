@@ -32,7 +32,7 @@ printf '%s\n' \
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
-emerge --quiet --getbinpkg --usepkgonly --binpkg-respect-use=n --noreplace \
+emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \

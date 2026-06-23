@@ -60,7 +60,7 @@ jobs:
             /var/cache/binpkgs
             /var/tmp/catalyst/packages
             /var/tmp/ccache
-          key: catalyst-${{ hashFiles('epox/portage/**', 'epox/gentoo-gnome.spec', 'epox/catalyst.conf', 'epox/scripts/fsscript.sh') }}
+          key: catalyst-${{ hashFiles('epox/gentoo-gnome.spec', 'epox/catalyst.conf') }}
           restore-keys: catalyst-
 
       - name: Get latest seed stage3 filename
