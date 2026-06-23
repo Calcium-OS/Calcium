@@ -8,6 +8,7 @@ mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/port
 
 printf '%s\n' \
   'gnome-base/* ~amd64' \
+  'gnome-extra/* ~amd64' \
   'x11-wm/* ~amd64' \
   'gui-libs/* ~amd64' \
   'media-libs/gsound ~amd64' \
@@ -44,7 +45,7 @@ id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage
 emerge --quiet --getbinpkg --binpkg-respect-use=n --oneshot \
   dev-libs/libffi dev-libs/expat '>=dev-libs/glib-2.88.1' 2>/dev/null || true
 
-emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
+emerge --quiet --getbinpkg --noreplace \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
