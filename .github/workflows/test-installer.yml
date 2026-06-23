@@ -186,7 +186,10 @@ jobs:
               -bios /usr/share/ovmf/OVMF.fd \
               -drive file=/tmp/disk.qcow2,format=qcow2,if=virtio \
               -nographic -serial mon:stdio -no-reboot
+            # LUKS password prompt from dracut (initramfs asks for passphrase)
             expect {
+              -re {[Pp]assphrase} { send "test\r"; exp_continue }
+              -re {[Pp]assword}   { send "test\r"; exp_continue }
               "login:" { }
               timeout { puts "Timeout waiting for login"; exit 1 }
             }

@@ -13,6 +13,7 @@ printf '%s\n' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
   'dev-libs/glib ~amd64' \
+  'dev-libs/gobject-introspection ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
@@ -22,6 +23,7 @@ printf '%s\n' \
   'sys-libs/libcap static-libs' \
   'gnome-base/gnome-extra-apps -games' \
   'llvm-core/libclc llvm_slot_22' \
+  '>=dev-libs/expat-2.8.1 abi_x86_32' \
   >> /etc/portage/package.use/gnome
 
 printf '%s\n' \
