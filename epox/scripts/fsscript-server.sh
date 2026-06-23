@@ -4,12 +4,16 @@ set -e
 
 echo ">>> Installing packages for server edition..."
 
-mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use
+mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.license
 
 printf '%s\n' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
   > /etc/portage/package.accept_keywords/server
+
+printf '%s\n' \
+  'linux-fw-redistributable' \
+  > /etc/portage/package.license/server
 
 # Create system accounts
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
