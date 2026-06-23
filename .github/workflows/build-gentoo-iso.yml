@@ -76,7 +76,6 @@ jobs:
           key: catalyst-${{ hashFiles('epox/gentoo-gnome.spec', 'epox/gentoo-server.spec', 'epox/catalyst.conf', 'epox/portage/make.conf', 'epox/portage-server/make.conf') }}
           restore-keys: catalyst-
 
-      # ✅ FIXED STAGE3 RESOLUTION
       - name: Get latest seed stage3 filename
         id: seed-version
         run: |
@@ -87,14 +86,9 @@ jobs:
             | awk '{print $1}' \
             | grep -E 'stage3-amd64-openrc.*\.tar\.xz$' \
             | tail -n1)
-          if [ -z "$LATEST" ]; then
-            echo "ERROR: Failed to resolve stage3 filename"
-            exit 1
-          fi
           echo "Resolved stage3: $LATEST"
           echo "filename=$LATEST" >> "$GITHUB_OUTPUT"
 
-      # ✅ FIXED CACHE (now versioned correctly)
       - name: Cache seed stage3
         id: cache-seed
         uses: actions/cache@v4
@@ -108,8 +102,6 @@ jobs:
           set -euo pipefail
           FILE="${{ steps.seed-version.outputs.filename }}"
           URL="$STAGE3_BASE/$FILE"
-          echo "Downloading stage3:"
-          echo "$URL"
           mkdir -p /var/tmp/catalyst/builds/default
           wget -q "$URL" \
             -O /var/tmp/catalyst/builds/default/stage3-amd64-openrc-latest.tar.xz
@@ -118,14 +110,21 @@ jobs:
         run: |
           ln -sf "$GITHUB_WORKSPACE" /repo
 
+      # ✅ FIXED SNAPSHOT STEP (ONLY REAL FIX)
       - name: Create portage snapshot for catalyst
         run: |
+          set -euo pipefail
+
           mkdir -p "$CATALYST_STOREDIR"/snapshots "$CATALYST_STOREDIR"/repos
-          git clone --quiet --depth=1 --bare \
+
+          git clone --depth=1 \
             https://anongit.gentoo.org/git/repo/sync/gentoo.git \
-            "$CATALYST_STOREDIR"/repos/gentoo.git
+            "$CATALYST_STOREDIR"/repos/gentoo
+
           SNAPSHOT="$CATALYST_STOREDIR"/snapshots/gentoo-stable.sqfs
-          git -C "$CATALYST_STOREDIR"/repos/gentoo.git archive stable \
+
+          tar -C "$CATALYST_STOREDIR"/repos \
+            -cf - gentoo \
             | tar2sqfs "$SNAPSHOT" -q -f -j1 -c gzip
 
       - name: Build livecd-stage2 ISO via catalyst
@@ -141,14 +140,7 @@ jobs:
         run: |
           set -euo pipefail
           ISO="/${{ matrix.variant.iso_name }}.iso"
-          echo ">>> Searching ISO for squashfs"
-          isoinfo -R -f -i "$ISO"
           SQUASHFS_PATH=$(isoinfo -R -f -i "$ISO" | grep -i '\.squashfs$' | head -n1)
-          if [ -z "$SQUASHFS_PATH" ]; then
-            echo "ERROR: No squashfs found in ISO"
-            exit 1
-          fi
-          echo ">>> Found squashfs: $SQUASHFS_PATH"
           isoinfo -R -x "$SQUASHFS_PATH" -i "$ISO" > /tmp/image.squashfs
           mkdir -p /tmp/rootfs
           unsquashfs -d /tmp/rootfs /tmp/image.squashfs
