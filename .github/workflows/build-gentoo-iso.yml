@@ -54,7 +54,7 @@ jobs:
 
       - name: Configure catalyst
         run: |
-          mkdir -p "$CATALYST_STOREDIR" /var/tmp/ccache
+          mkdir -p "$CATALYST_STOREDIR"
           cp -v epox/catalyst.conf /etc/catalyst/catalyst.conf
           mkdir -p /etc/catalyst
           cp -rv ${{ matrix.variant.portage_dir }} ${{ matrix.variant.portage_confdir }}
@@ -63,8 +63,6 @@ jobs:
       - name: Set Gentoo mirrors
         run: |
           MIRRORS='GENTOO_MIRRORS="https://distfiles.gentoo.org https://mirror.rackspace.com/gentoo/ https://mirrors.rit.edu/gentoo/"'
-          echo "$MIRRORS"
-          sed -i "/^export GENTOO_MIRRORS/d" /etc/catalyst/env.sh
           echo "export $MIRRORS" >> /etc/catalyst/env.sh
           echo "$MIRRORS" >> /etc/portage/make.conf
 
@@ -81,9 +79,8 @@ jobs:
       - name: Get latest seed stage3 filename
         id: seed-version
         run: |
-          LATEST=$(wget -q -O- "$STAGE3_BASE/latest-stage3-amd64-openrc.txt" | sed -n '/^[0-9]/p' | head -1 | cut -d' ' -f1)
+          LATEST=$(wget -q -O- "$STAGE3_BASE/latest-stage3-amd64-openrc.txt" | head -n1 | cut -d' ' -f1)
           echo "filename=$LATEST" >> "$GITHUB_OUTPUT"
-          echo "Seed: $LATEST"
 
       - name: Cache seed stage3
         id: cache-seed
@@ -96,7 +93,8 @@ jobs:
         if: steps.cache-seed.outputs.cache-hit != 'true'
         run: |
           mkdir -p /var/tmp/catalyst/builds/default
-          wget -q "$STAGE3_BASE/${{ steps.seed-version.outputs.filename }}" -O /var/tmp/catalyst/builds/default/stage3-amd64-openrc-latest.tar.xz
+          wget -q "$STAGE3_BASE/${{ steps.seed-version.outputs.filename }}" \
+            -O /var/tmp/catalyst/builds/default/stage3-amd64-openrc-latest.tar.xz
 
       - name: Set up repository symlink for catalyst spec
         run: |
@@ -106,16 +104,12 @@ jobs:
         run: |
           mkdir -p "$CATALYST_STOREDIR"/snapshots "$CATALYST_STOREDIR"/repos
           git clone --quiet --depth=1 --bare \
-            -c gc.reflogExpire=0 -c gc.reflogExpireUnreachable=0 \
-            -c gc.rerereresolved=0 -c gc.rerereunresolved=0 \
-            -c gc.pruneExpire=now \
-            --branch=stable \
             https://anongit.gentoo.org/git/repo/sync/gentoo.git \
             "$CATALYST_STOREDIR"/repos/gentoo.git
+
           SNAPSHOT="$CATALYST_STOREDIR"/snapshots/gentoo-stable.sqfs
-          git -C "$CATALYST_STOREDIR"/repos/gentoo.git archive --format=tar stable \
+          git -C "$CATALYST_STOREDIR"/repos/gentoo.git archive stable \
             | tar2sqfs "$SNAPSHOT" -q -f -j1 -c gzip
-          echo "Snapshot created: $SNAPSHOT ($(stat -c%s "$SNAPSHOT") bytes)"
 
       - name: Build livecd-stage2 ISO via catalyst
         run: |
@@ -126,21 +120,53 @@ jobs:
         run: |
           emerge --getbinpkg app-cdr/cdrtools sys-fs/squashfs-tools
 
+      # ✅ FIXED STEP
       - name: Create rootfs tarball from ISO
         run: |
-          isoinfo -R -x /image.squashfs -i /${{ matrix.variant.iso_name }}.iso 2>/dev/null > /tmp/image.squashfs
+          set -euo pipefail
+
+          ISO="/${{ matrix.variant.iso_name }}.iso"
+
+          echo ">>> Searching ISO for squashfs"
+          isoinfo -R -f -i "$ISO"
+
+          SQUASHFS_PATH=$(isoinfo -R -f -i "$ISO" | grep -i '\.squashfs$' | head -n1)
+
+          if [ -z "$SQUASHFS_PATH" ]; then
+            echo "ERROR: No squashfs found in ISO"
+            exit 1
+          fi
+
+          echo ">>> Found squashfs: $SQUASHFS_PATH"
+
+          isoinfo -R -x "$SQUASHFS_PATH" -i "$ISO" > /tmp/image.squashfs
+
+          echo ">>> Verifying squashfs"
+          ls -lh /tmp/image.squashfs
+          file /tmp/image.squashfs
+
+          echo ">>> Unsquashing"
           mkdir -p /tmp/rootfs
-          unsquashfs -d /tmp/rootfs /tmp/image.squashfs >/dev/null 2>&1
-          cd /tmp/rootfs
-          tar --exclude=home/livecd \
-              --exclude=root/.cache \
-              --exclude=var/cache \
-              --exclude=var/tmp \
-              --exclude=var/db/repos \
-              --exclude=var/log \
-              -cJf /calcium-rootfs-${{ matrix.variant.target }}.tar.xz .
-          cd /
-          echo "Rootfs tarball: $(stat -c%s /calcium-rootfs-${{ matrix.variant.target }}.tar.xz) bytes"
+          unsquashfs -d /tmp/rootfs /tmp/image.squashfs
+
+          test -d /tmp/rootfs/usr || {
+            echo "ERROR: rootfs extraction failed"
+            exit 1
+          }
+
+          echo ">>> Creating tarball"
+          tar \
+            --exclude=home/livecd \
+            --exclude=root/.cache \
+            --exclude=var/cache \
+            --exclude=var/tmp \
+            --exclude=var/db/repos \
+            --exclude=var/log \
+            -cJf /calcium-rootfs-${{ matrix.variant.target }}.tar.xz \
+            -C /tmp/rootfs .
+
+          echo ">>> Tarball size:"
+          stat -c%s /calcium-rootfs-${{ matrix.variant.target }}.tar.xz
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
@@ -162,6 +188,7 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -197,5 +224,3 @@ jobs:
             gentoo-server-openrc-amd64.iso \
             calcium-rootfs-gnome.tar.xz \
             calcium-rootfs-server.tar.xz
-
-
