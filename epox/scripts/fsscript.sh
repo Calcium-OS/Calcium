@@ -2,22 +2,27 @@
 # fsscript: package installation and LiveCD customization
 set -e
 
-echo ">>> Installing packages for GNOME desktop..."
+echo ">>> Installing packages for GNOME desktop (Stable GNOME 48)..."
 
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask
 
+# Keep only necessary kernel/firmware keywords if testing branch is preferred for hardware support
 printf '%s\n' \
-  'gnome-base/gnome ~amd64' \
-  'gnome-base/gdm ~amd64' \
-  'gnome-base/gnome-shell ~amd64' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
+# Lock USE flags to stable GNOME 48 target constraints instead of 9999 (live git)
 printf '%s\n' \
-  '>=gnome-base/gdm-9999 elogind' \
-  '>=gnome-base/gnome-settings-daemon-9999 elogind' \
+  '>=gnome-base/gdm-48 elogind' \
+  '>=gnome-base/gnome-settings-daemon-48 elogind' \
   > /etc/portage/package.use/gnome
+
+# Required multilib flags for flatpak, fonts, and steam-adjacent dependencies
+printf '%s\n' \
+  'sys-apps/util-linux abi_x86_32' \
+  'dev-libs/expat abi_x86_32' \
+  > /etc/portage/package.use/multilib
 
 printf '%s\n' \
   'gnome-extra/gnome-extensions-app' \
@@ -27,7 +32,9 @@ printf '%s\n' \
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
+# Added --autounmask flags to handle minor environmental divergence during non-interactive runs
 emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
+  --autounmask=y --autounmask-write=y \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
