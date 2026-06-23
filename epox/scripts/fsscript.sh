@@ -65,7 +65,6 @@ emerge --quiet --getbinpkg --noreplace \
   sys-apps/gptfdisk \
   net-misc/rsync \
   dev-python/pygobject \
-  app-containers/lxc \
   media-libs/gsound \
   sys-boot/grub
 
