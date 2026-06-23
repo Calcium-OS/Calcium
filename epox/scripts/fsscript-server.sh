@@ -14,6 +14,10 @@ mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/port
 mkdir -p /etc/portage/package.license
 echo "sys-kernel/linux-firmware linux-fw-redistributable" > /etc/portage/package.license/server
 
+# Disable multi-lib/32 bit for whatever is pulling Zlib (Git?)
+
+echo "sys-libs/zlib -abi_x86_32 -abi_x86_64" >> /etc/portage/package.use/zlib
+
 # Create system accounts
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
