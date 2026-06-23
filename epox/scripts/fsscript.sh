@@ -6,15 +6,10 @@ echo ">>> Installing packages for GNOME desktop..."
 
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask
 
-# Accept testing (~amd64) keywords globally for GNOME stack dependencies
-sed -i '/^ACCEPT_KEYWORDS/d' /etc/portage/make.conf 2>/dev/null || true
-echo 'ACCEPT_KEYWORDS="~amd64"' >> /etc/portage/make.conf
-sed -i '/^CONFIG_PROTECT/d' /etc/portage/make.conf 2>/dev/null || true
-echo 'CONFIG_PROTECT=""' >> /etc/portage/make.conf
-
 printf '%s\n' \
   'gnome-base/* ~amd64' \
   'x11-wm/* ~amd64' \
+  'gui-libs/* ~amd64' \
   'media-libs/gsound ~amd64' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
@@ -22,7 +17,6 @@ printf '%s\n' \
   'dev-libs/gobject-introspection ~amd64' \
   'dev-libs/gobject-introspection-common ~amd64' \
   'dev-libs/gjs ~amd64' \
-  'gui-libs/libadwaita ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
@@ -44,7 +38,7 @@ printf '%s\n' \
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
-CONFIG_PROTECT="" emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace --autounmask-write \
+emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
