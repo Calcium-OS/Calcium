@@ -42,10 +42,10 @@ id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
 # Pre-upgrade packages that need abi_x86_32 to resolve slot conflicts
-emerge --quiet --getbinpkg --binpkg-respect-use=n --oneshot \
+emerge --quiet --oneshot \
   dev-libs/libffi dev-libs/expat '>=dev-libs/glib-2.88.1' 2>/dev/null || true
 
-emerge --quiet --getbinpkg --noreplace \
+emerge --quiet --noreplace \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
