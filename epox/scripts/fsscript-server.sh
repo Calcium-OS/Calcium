@@ -51,6 +51,8 @@ rc-update add sshd default
 rc-update add dhcpcd default
 rc-update add tailscale default
 rc-update add cronie default
+rc-service tailscale start
+rc-update add tailscale default 
 
 echo ">>> Configuring sudo for live user..."
 mkdir -p /etc/sudoers.d
