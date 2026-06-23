@@ -120,7 +120,7 @@ if [ -n "$LF_URL" ]; then
 fi
 
 echo ">>> Installing uv..."
-wget (link available in full source) -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path 2>/dev/null || true
+wget -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path 2>/dev/null || true
 
 echo ">>> Installing Fildem global menu..."
 wget -q -O /tmp/fildem.tar.gz "https://github.com/InledGroup/Fildem/archive/refs/heads/main.tar.gz"
