@@ -7,18 +7,8 @@ echo ">>> Installing packages for GNOME desktop..."
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask
 
 printf '%s\n' \
-  'gnome-base/* ~amd64' \
-  'gnome-extra/* ~amd64' \
-  'x11-wm/* ~amd64' \
-  'gui-libs/* ~amd64' \
-  'media-libs/gsound ~amd64' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
-  'dev-libs/glib ~amd64' \
-  'dev-libs/gobject-introspection ~amd64' \
-  'dev-libs/gobject-introspection-common ~amd64' \
-  'dev-libs/gjs ~amd64' \
-  'media-libs/glycin ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
@@ -29,7 +19,7 @@ printf '%s\n' \
   'gnome-base/gnome-extra-apps -games' \
   'llvm-core/libclc llvm_slot_22' \
   'dev-libs/expat abi_x86_32' \
-  '>=dev-libs/glib-2.88.1 abi_x86_32' \
+  'dev-libs/glib abi_x86_32' \
   'dev-libs/libffi abi_x86_32' \
   >> /etc/portage/package.use/gnome
 
@@ -42,10 +32,10 @@ id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
 # Pre-upgrade packages that need abi_x86_32 to resolve slot conflicts
-emerge --quiet --oneshot \
-  dev-libs/libffi dev-libs/expat '>=dev-libs/glib-2.88.1' 2>/dev/null || true
+emerge --quiet --getbinpkg --binpkg-respect-use=n --oneshot \
+  dev-libs/libffi dev-libs/expat dev-libs/glib 2>/dev/null || true
 
-emerge --quiet --noreplace \
+emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
