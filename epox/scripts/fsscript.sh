@@ -6,6 +6,12 @@ echo ">>> Installing packages for GNOME desktop..."
 
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask
 
+# Accept testing (~amd64) keywords globally for GNOME stack dependencies
+sed -i '/^ACCEPT_KEYWORDS/d' /etc/portage/make.conf 2>/dev/null || true
+echo 'ACCEPT_KEYWORDS="~amd64"' >> /etc/portage/make.conf
+sed -i '/^CONFIG_PROTECT/d' /etc/portage/make.conf 2>/dev/null || true
+echo 'CONFIG_PROTECT=""' >> /etc/portage/make.conf
+
 printf '%s\n' \
   'gnome-base/* ~amd64' \
   'x11-wm/* ~amd64' \
@@ -16,6 +22,7 @@ printf '%s\n' \
   'dev-libs/gobject-introspection ~amd64' \
   'dev-libs/gobject-introspection-common ~amd64' \
   'dev-libs/gjs ~amd64' \
+  'gui-libs/libadwaita ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
