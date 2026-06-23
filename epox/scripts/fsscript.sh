@@ -14,6 +14,7 @@ printf '%s\n' \
   'sys-kernel/linux-firmware ~amd64' \
   'dev-libs/glib ~amd64' \
   'dev-libs/gobject-introspection ~amd64' \
+  'dev-libs/gobject-introspection-common ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
@@ -24,6 +25,7 @@ printf '%s\n' \
   'gnome-base/gnome-extra-apps -games' \
   'llvm-core/libclc llvm_slot_22' \
   '>=dev-libs/expat-2.8.1 abi_x86_32' \
+  '>=dev-libs/glib-2.88.1 abi_x86_32' \
   >> /etc/portage/package.use/gnome
 
 printf '%s\n' \
@@ -34,7 +36,7 @@ printf '%s\n' \
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
-emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
+emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace --autounmask-write --autounmask-continue \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
