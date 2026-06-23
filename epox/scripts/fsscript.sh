@@ -79,7 +79,8 @@ emerge --quiet --getbinpkg --noreplace \
   net-misc/rsync \
   dev-python/pygobject \
   media-libs/gsound \
-  sys-boot/grub
+  sys-boot/grub \
+  net-vpn/tailscale
 
 echo ">>> Configuring zram swap..."
 cat > /etc/conf.d/zram-init <<'ZRAMCONF'
@@ -379,6 +380,7 @@ rc-update add display-manager default
 rc-update add dbus default
 rc-update add elogind default
 rc-update add cronie default
+rc-update add tailscale default
 rc-update add zram-init boot
 
 # Make ~/.local/bin in skeleton for user AppImages

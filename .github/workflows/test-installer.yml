@@ -21,7 +21,7 @@ on:
       - 'epox/rootfs-overlay/usr/share/calcium-installer/**'
       - 'epox/scripts/fsscript.sh'
   workflow_run:
-    workflows: ["Build Gentoo ISO (GNOME + OpenRC + Zsh)"]
+    workflows: ["Build Gentoo ISOs"]
     types: [completed]
   workflow_dispatch:
 

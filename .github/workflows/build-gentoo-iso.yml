@@ -1,4 +1,4 @@
-name: Build Gentoo ISO (GNOME + OpenRC + Zsh)
+name: Build Gentoo ISOs
 
 on:
   push:
@@ -8,12 +8,25 @@ on:
   workflow_dispatch:
 
 env:
-  ISO_NAME: gentoo-gnome-openrc-amd64
   CATALYST_STOREDIR: /var/tmp/catalyst
   STAGE3_BASE: https://distfiles.gentoo.org/releases/amd64/autobuilds
 
 jobs:
   build-iso:
+    strategy:
+      matrix:
+        variant:
+          - name: gnome
+            spec_file: epox/gentoo-gnome.spec
+            iso_name: gentoo-gnome-openrc-amd64
+            portage_dir: epox/portage
+            target: gnome
+          - name: server
+            spec_file: epox/gentoo-server.spec
+            iso_name: gentoo-server-openrc-amd64
+            portage_dir: epox/portage-server
+            target: server
+
     runs-on: blacksmith-4vcpu-ubuntu-2404
     container:
       image: gentoo/stage3:latest
@@ -42,7 +55,7 @@ jobs:
           mkdir -p "$CATALYST_STOREDIR" /var/tmp/ccache
           cp -v epox/catalyst.conf /etc/catalyst/catalyst.conf
           mkdir -p /etc/catalyst
-          cp -rv epox/portage /etc/catalyst/portage
+          cp -rv ${{ matrix.variant.portage_dir }} /etc/catalyst/portage-${{ matrix.variant.target }}
           cp -v epox/env/catalystrc /etc/catalyst/env.sh
 
       - name: Set Gentoo mirrors
@@ -60,7 +73,7 @@ jobs:
             /var/cache/binpkgs
             /var/tmp/catalyst/packages
             /var/tmp/ccache
-          key: catalyst-${{ hashFiles('epox/gentoo-gnome.spec', 'epox/catalyst.conf') }}
+          key: catalyst-${{ hashFiles('epox/gentoo-gnome.spec', 'epox/gentoo-server.spec', 'epox/catalyst.conf', 'epox/portage/make.conf', 'epox/portage-server/make.conf') }}
           restore-keys: catalyst-
 
       - name: Get latest seed stage3 filename
@@ -105,7 +118,7 @@ jobs:
       - name: Build livecd-stage2 ISO via catalyst
         run: |
           export CATALYST_STOREDIR
-          catalyst -f /repo/epox/gentoo-gnome.spec
+          catalyst -f /repo/${{ matrix.variant.spec_file }}
 
       - name: Install ISO extraction tools
         run: |
@@ -113,7 +126,7 @@ jobs:
 
       - name: Create rootfs tarball from ISO
         run: |
-          isoinfo -R -x /image.squashfs -i /${{ env.ISO_NAME }}.iso 2>/dev/null > /tmp/image.squashfs
+          isoinfo -R -x /image.squashfs -i /${{ matrix.variant.iso_name }}.iso 2>/dev/null > /tmp/image.squashfs
           mkdir -p /tmp/rootfs
           unsquashfs -d /tmp/rootfs /tmp/image.squashfs >/dev/null 2>&1
           cd /tmp/rootfs
@@ -123,22 +136,22 @@ jobs:
               --exclude=var/tmp \
               --exclude=var/db/repos \
               --exclude=var/log \
-              -cJf /calcium-rootfs.tar.xz .
+              -cJf /calcium-rootfs-${{ matrix.variant.target }}.tar.xz .
           cd /
-          echo "Rootfs tarball: $(stat -c%s /calcium-rootfs.tar.xz) bytes"
+          echo "Rootfs tarball: $(stat -c%s /calcium-rootfs-${{ matrix.variant.target }}.tar.xz) bytes"
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ISO_NAME }}
-          path: /${{ env.ISO_NAME }}.iso
+          name: ${{ matrix.variant.iso_name }}
+          path: /${{ matrix.variant.iso_name }}.iso
           compression-level: 0
 
       - name: Upload rootfs tarball
         uses: actions/upload-artifact@v4
         with:
-          name: calcium-rootfs
-          path: /calcium-rootfs.tar.xz
+          name: calcium-rootfs-${{ matrix.variant.target }}
+          path: /calcium-rootfs-${{ matrix.variant.target }}.tar.xz
           compression-level: 0
 
   release:
@@ -150,15 +163,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download ISO
+      - name: Download GNOME ISO
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.ISO_NAME }}
+          name: gentoo-gnome-openrc-amd64
 
-      - name: Download rootfs tarball
+      - name: Download Server ISO
         uses: actions/download-artifact@v4
         with:
-          name: calcium-rootfs
+          name: gentoo-server-openrc-amd64
+
+      - name: Download GNOME rootfs
+        uses: actions/download-artifact@v4
+        with:
+          name: calcium-rootfs-gnome
+
+      - name: Download Server rootfs
+        uses: actions/download-artifact@v4
+        with:
+          name: calcium-rootfs-server
 
       - name: Create release
         env:
@@ -168,7 +191,9 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             --title "Calcium OS v$VERSION" \
             --notes "Calcium OS v$VERSION release." \
-            ${{ env.ISO_NAME }}.iso \
-            calcium-rootfs.tar.xz
+            gentoo-gnome-openrc-amd64.iso \
+            gentoo-server-openrc-amd64.iso \
+            calcium-rootfs-gnome.tar.xz \
+            calcium-rootfs-server.tar.xz
 
 
