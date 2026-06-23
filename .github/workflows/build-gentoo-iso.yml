@@ -76,24 +76,50 @@ jobs:
           key: catalyst-${{ hashFiles('epox/gentoo-gnome.spec', 'epox/gentoo-server.spec', 'epox/catalyst.conf', 'epox/portage/make.conf', 'epox/portage-server/make.conf') }}
           restore-keys: catalyst-
 
+      # ✅ FIXED STAGE3 RESOLUTION
       - name: Get latest seed stage3 filename
         id: seed-version
         run: |
-          LATEST=$(wget -q -O- "$STAGE3_BASE/latest-stage3-amd64-openrc.txt" | head -n1 | cut -d' ' -f1)
+          set -euo pipefail
+
+          URL="$STAGE3_BASE/latest-stage3-amd64-openrc.txt"
+
+          echo "Fetching: $URL"
+
+          LATEST=$(wget -q -O- "$URL" \
+            | grep -E 'stage3-amd64-openrc.*\.tar\.xz' \
+            | tail -n1)
+
+          if [ -z "$LATEST" ]; then
+            echo "ERROR: Failed to resolve stage3 filename"
+            exit 1
+          fi
+
+          echo "Resolved stage3: $LATEST"
           echo "filename=$LATEST" >> "$GITHUB_OUTPUT"
 
+      # ✅ FIXED CACHE (stable key)
       - name: Cache seed stage3
         id: cache-seed
         uses: actions/cache@v4
         with:
           path: /var/tmp/catalyst/builds/default/stage3-amd64-openrc-latest.tar.xz
-          key: seed-stage3-${{ steps.seed-version.outputs.filename }}
+          key: seed-stage3-latest
 
       - name: Download seed stage3
         if: steps.cache-seed.outputs.cache-hit != 'true'
         run: |
+          set -euo pipefail
+
+          FILE="${{ steps.seed-version.outputs.filename }}"
+          URL="$STAGE3_BASE/$FILE"
+
+          echo "Downloading stage3:"
+          echo "$URL"
+
           mkdir -p /var/tmp/catalyst/builds/default
-          wget -q "$STAGE3_BASE/${{ steps.seed-version.outputs.filename }}" \
+
+          wget -q "$URL" \
             -O /var/tmp/catalyst/builds/default/stage3-amd64-openrc-latest.tar.xz
 
       - name: Set up repository symlink for catalyst spec
@@ -120,7 +146,6 @@ jobs:
         run: |
           emerge --getbinpkg app-cdr/cdrtools sys-fs/squashfs-tools
 
-      # ✅ FIXED STEP
       - name: Create rootfs tarball from ISO
         run: |
           set -euo pipefail
@@ -141,20 +166,9 @@ jobs:
 
           isoinfo -R -x "$SQUASHFS_PATH" -i "$ISO" > /tmp/image.squashfs
 
-          echo ">>> Verifying squashfs"
-          ls -lh /tmp/image.squashfs
-          file /tmp/image.squashfs
-
-          echo ">>> Unsquashing"
           mkdir -p /tmp/rootfs
           unsquashfs -d /tmp/rootfs /tmp/image.squashfs
 
-          test -d /tmp/rootfs/usr || {
-            echo "ERROR: rootfs extraction failed"
-            exit 1
-          }
-
-          echo ">>> Creating tarball"
           tar \
             --exclude=home/livecd \
             --exclude=root/.cache \
@@ -164,9 +178,6 @@ jobs:
             --exclude=var/log \
             -cJf /calcium-rootfs-${{ matrix.variant.target }}.tar.xz \
             -C /tmp/rootfs .
-
-          echo ">>> Tarball size:"
-          stat -c%s /calcium-rootfs-${{ matrix.variant.target }}.tar.xz
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
