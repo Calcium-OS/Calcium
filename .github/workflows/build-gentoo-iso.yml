@@ -114,7 +114,6 @@ jobs:
       - name: Create portage snapshot for catalyst
         run: |
           set -euo pipefail
-
           mkdir -p "$CATALYST_STOREDIR"/snapshots "$CATALYST_STOREDIR"/repos
 
           git clone --depth=1 \
@@ -123,7 +122,6 @@ jobs:
 
           SNAPSHOT="$CATALYST_STOREDIR"/snapshots/gentoo-stable.sqfs
 
-          # Tar the contents of the directory (.) instead of the directory itself
           tar -C "$CATALYST_STOREDIR"/repos/gentoo \
             -cf - . \
             | tar2sqfs "$SNAPSHOT" -q -f -j1 -c gzip
@@ -133,18 +131,49 @@ jobs:
           export CATALYST_STOREDIR
           catalyst -f /repo/${{ matrix.variant.spec_file }}
 
-      - name: Install ISO extraction tools
-        run: |
-          emerge --getbinpkg app-cdr/cdrtools sys-fs/squashfs-tools
-
       - name: Create rootfs tarball from ISO
         run: |
           set -euo pipefail
           ISO="/${{ matrix.variant.iso_name }}.iso"
-          SQUASHFS_PATH=$(isoinfo -R -f -i "$ISO" | grep -i '\.squashfs$' | head -n1)
-          isoinfo -R -x "$SQUASHFS_PATH" -i "$ISO" > /tmp/image.squashfs
+          
+          echo "::group::Mounting ISO & Finding SquashFS"
+          if [ ! -f "$ISO" ]; then
+            echo "::error::ISO file not found at $ISO"
+            exit 1
+          fi
+
+          mkdir -p /mnt/iso
+          echo "Mounting $ISO to /mnt/iso..."
+          mount -o loop "$ISO" /mnt/iso || { echo "::error::Failed to mount ISO"; exit 1; }
+          
+          echo "Searching for squashfs files..."
+          # Use -L to follow symlinks so we guarantee we find the binary file, not a text link.
+          SQUASHFS_PATH=$(find -L /mnt/iso -type f -name "*.squashfs" | head -n1)
+          
+          if [ -z "$SQUASHFS_PATH" ]; then
+            echo "::error::Could not find a valid .squashfs file inside the ISO!"
+            echo "Dumping ISO contents for debugging:"
+            find /mnt/iso -ls
+            umount /mnt/iso
+            exit 1
+          fi
+          echo "Found SQUASHFS at: $SQUASHFS_PATH"
+          echo "::endgroup::"
+          
+          echo "::group::Unpacking SquashFS"
           mkdir -p /tmp/rootfs
-          unsquashfs -d /tmp/rootfs /tmp/image.squashfs
+          if ! unsquashfs -d /tmp/rootfs "$SQUASHFS_PATH"; then
+            echo "::error::Failed to extract $SQUASHFS_PATH"
+            umount /mnt/iso
+            exit 1
+          fi
+          echo "Extraction successful."
+          echo "::endgroup::"
+          
+          echo "::group::Cleaning up & Creating Tarball"
+          umount /mnt/iso || echo "Warning: Failed to unmount /mnt/iso (non-fatal)"
+          
+          echo "Creating final rootfs tarball..."
           tar \
             --exclude=home/livecd \
             --exclude=root/.cache \
@@ -153,7 +182,10 @@ jobs:
             --exclude=var/db/repos \
             --exclude=var/log \
             -cJf /calcium-rootfs-${{ matrix.variant.target }}.tar.xz \
-            -C /tmp/rootfs .
+            -C /tmp/rootfs . || { echo "::error::Tarball creation failed"; exit 1; }
+          
+          echo "Tarball created successfully."
+          echo "::endgroup::"
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
