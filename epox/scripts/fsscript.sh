@@ -7,23 +7,17 @@ echo ">>> Installing packages for GNOME desktop..."
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask
 
 printf '%s\n' \
+  'gnome-base/gnome ~amd64' \
+  'gnome-base/gdm ~amd64' \
+  'gnome-base/gnome-shell ~amd64' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
-  >> /etc/portage/package.accept_keywords/gnome
+  > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
-  'gnome-base/gdm elogind' \
-  'gnome-base/gnome-settings-daemon elogind' \
-  'sys-auth/pambase elogind gnome-keyring' \
-  'sys-libs/libcap static-libs abi_x86_32' \
-  'gnome-base/gnome-extra-apps -games' \
-  'llvm-core/libclc llvm_slot_22' \
-  'dev-libs/expat abi_x86_32' \
-  'dev-libs/glib abi_x86_32' \
-  'dev-libs/libffi abi_x86_32' \
-  '>=sys-libs/zlib-ng-2.3.3 compat abi_x86_32' \
-  '>=dev-libs/elfutils-0.195 abi_x86_32' \
-  >> /etc/portage/package.use/gnome
+  '>=gnome-base/gdm-9999 elogind' \
+  '>=gnome-base/gnome-settings-daemon-9999 elogind' \
+  > /etc/portage/package.use/gnome
 
 printf '%s\n' \
   'gnome-extra/gnome-extensions-app' \
