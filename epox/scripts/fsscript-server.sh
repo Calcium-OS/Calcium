@@ -2,6 +2,11 @@
 # fsscript: server edition package installation and LiveCD customization
 set -e
 
+# Set Profile 1 whichis   [1]   default/linux/amd64/23.0 (stable) - Avoids pulling GTK or other GUI packages.
+
+eselect profile list
+eselect profile set 1
+
 echo ">>> Installing packages for server edition..."
 
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.license
