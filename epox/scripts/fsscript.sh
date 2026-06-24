@@ -110,9 +110,8 @@ printf '%s\n' \
   org.torproject.torbrowser-launcher \
   app.devsuite.Ptyxis \
   dev.zed.Zed \
-  com.github.Matoking.protontricks
-  
-  | xargs -P 3 -I{} sh -c 'flatpak install --system -y --noninteractive flathub "$1" 2>/dev/null || echo "(flatpak install of $1 failed)"' -- {}
+  com.github.Matoking.protontricks | \
+  xargs -P 3 -I{} sh -c 'flatpak install --system -y --noninteractive flathub "$1" 2>/dev/null || echo "(flatpak install of $1 failed)"' -- {}
 
 flatpak remote-add --system --if-not-exists mixtapes https://m-obeid.github.io/Mixtapes/mixtapes.flatpakrepo 2>/dev/null || true
 flatpak install --system -y --noninteractive mixtapes com.pocoguy.Muse 2>/dev/null || \
@@ -239,13 +238,13 @@ WINE_URL=$(wget -q -O- https://api.github.com/repos/mmtrt/WINE_AppImage/releases
   | grep "WINE_url.*AppImage" | head -1 | cut -d'"' -f4)
 if [ -n "$WINE_URL" ]; then
   mkdir -p /opt/wine
-  wget -q -O /opt/wine/wine.AppImage "$SUNSHINE_URL"
-  chmod +x /opt/sunshine/wine.AppImage
+  wget -q -O /opt/wine/wine.AppImage "$WINE_URL"
+  chmod +x /opt/wine/wine.AppImage
   cd /opt/wine
   ./wine.AppImage --appimage-extract 2>/dev/null || true #  Add wine = Wine.AppImage alias
   cd /
   if [ -f /opt/wine/squashfs-root/AppRun ]; then
-    ln -sf /opt/wine/squashfs-root/AppRun /opt/sunshine/sunshine
+    ln -sf /opt/wine/squashfs-root/AppRun /opt/wine/wine
   fi
   rm -f /opt/wine/wine.AppImage
 fi
