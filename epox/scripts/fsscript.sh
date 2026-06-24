@@ -102,6 +102,9 @@ printf '%s\n' \
   com.protonvpn.www \
   org.torproject.torbrowser-launcher \
   app.devsuite.Ptyxis \
+  dev.zed.Zed \
+  com.github.Matoking.protontricks
+  
   | xargs -P 3 -I{} sh -c 'flatpak install --system -y --noninteractive flathub "$1" 2>/dev/null || echo "(flatpak install of $1 failed)"' -- {}
 
 flatpak remote-add --system --if-not-exists mixtapes https://m-obeid.github.io/Mixtapes/mixtapes.flatpakrepo 2>/dev/null || true
@@ -275,9 +278,6 @@ if [ -n "$APPIMAGEUPDATE_URL" ]; then
     chmod +x /usr/local/bin/AppImageUpdate || \
     echo "(AppImageUpdate install failed)"
 fi
-
-echo ">>> Installing Zed text editor..."
-curl -fsSL https://zed.dev/install.sh 2>/dev/null | sh -s -- --no-modify-path 2>/dev/null || echo "(Zed install failed)"
 
 # FROM NEW SCRIPT: Added Waydroid Container framework
 echo ">>> Installing Waydroid (Android in a container)..."
