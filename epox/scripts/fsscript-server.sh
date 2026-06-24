@@ -31,7 +31,7 @@ emerge --quiet --getbinpkg --noreplace \
   app-portage/portage-utils \
   app-editors/nano \
   sys-process/btop \
-  app-admin/sudo \
+  app-admin/doas \
   net-misc/ntp \
   sys-apps/dmidecode \
   app-misc/screen \
@@ -64,9 +64,14 @@ rc-update add dhcpcd default
 rc-update add tailscale default
 rc-update add cronie default
 
-echo ">>> Configuring sudo for live user..."
-mkdir -p /etc/sudoers.d
-echo "livecd ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/liveuser
+echo ">>> Configuring doas for live user..."
+touch /etc/doas.conf
+mkdir -p /etc/doas.conf
+chown -c root:root /etc/doas.conf
+chmod -c 0400 /etc/doas.conf
+
+
+echo "permit persist :wheel" >> /etc/doas.conf
 
 echo ">>> Removing passwords..."
 passwd -d root
