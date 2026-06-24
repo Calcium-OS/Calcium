@@ -66,7 +66,6 @@ rc-update add cronie default
 
 echo ">>> Configuring doas for live user..."
 touch /etc/doas.conf
-mkdir -p /etc/doas.conf
 chown -c root:root /etc/doas.conf
 chmod -c 0400 /etc/doas.conf
 

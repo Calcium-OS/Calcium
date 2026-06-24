@@ -23,6 +23,8 @@ printf '%s\n' \
   'app-arch/7zip rar' \
   > /etc/portage/package.use/7zip 
 
+echo "app-arch/7zip unRAR" >> /etc/portage/package.license/7zip
+
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
