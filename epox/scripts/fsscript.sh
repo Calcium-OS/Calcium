@@ -17,7 +17,7 @@ mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/port
 # Mask GNOME games
 cat > /etc/portage/package.mask/gnome-games <<'EOF'
 # GNOME Games - removed from LiveCD build
-
+# gnome-extra games
 gnome-extra/quadrapassel
 gnome-extra/iagno
 gnome-extra/gnome-nibbles
@@ -31,6 +31,22 @@ gnome-extra/swell-foop
 gnome-extra/tali
 gnome-extra/gnome-taquin
 gnome-extra/gnome-tetravex
+gnome-extra/tecla
+
+# games-board / games-puzzle (this is what your log is actually installing)
+games-board/gnome-chess
+games-board/gnome-mahjongg
+games-board/gnome-mines
+
+games-puzzle/five-or-more
+games-puzzle/gnome-klotski
+games-puzzle/gnome-sudoku
+games-puzzle/gnome-tetravex
+games-puzzle/hitori
+
+# safety net (optional but effective in GNOME-heavy builds)
+games-board/*
+games-puzzle/*
 EOF
 
 printf '%s\n' \
