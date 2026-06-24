@@ -337,7 +337,10 @@ SHORTCUTS
 dconf update 2>/dev/null || true
 
 gsettings set org.gnome.mutter experimental-features "['variable-refresh-rate']" # Enable expermental Variable Refresh Rate support
-# gsettings set org.gnome.gnome-screenshot auto-save-directory file:///home/user/Desktop - Save screenshots to ~/Picures/Screenshots
+
+mkdir -p ~/Pictures/Screenshots
+gsettings set org.gnome.gnome-screenshot auto-save-directory "file://$HOME/Pictures/Screenshots"
+
 gsettings set org.gnome.SessionManager logout-prompt false
 gsettings set org.gnome.desktop.interface gtk-enable-primary-paste false
 gsettings set org.gnome.settings-daemon.plugins.media-keys volume-step 2
