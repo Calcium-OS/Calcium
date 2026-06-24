@@ -19,9 +19,8 @@ printf '%s\n' \
   '>=gnome-base/gnome-settings-daemon-9999 elogind' \
   > /etc/portage/package.use/gnome
 
-printf '%s\n' \
-  'app-arch/7zip rar' \
-  > /etc/portage/package.use/7zip 
+
+echo "app-arch/7zip rar" >> /etc/portage/package.use/7zip
 
 echo "app-arch/7zip unRAR" >> /etc/portage/package.license/7zip
 
