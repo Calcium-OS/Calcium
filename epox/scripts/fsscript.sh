@@ -15,6 +15,25 @@ echo ">>> Installing packages for GNOME desktop..."
 
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask /etc/portage/package.license
 
+# Mask GNOME games
+cat > /etc/portage/package.mask/gnome-games <<'EOF'
+# GNOME Games - removed from LiveCD build
+
+gnome-extra/quadrapassel
+gnome-extra/iagno
+gnome-extra/gnome-nibbles
+gnome-extra/gnome-klotski
+gnome-extra/lightsoff
+gnome-extra/gnome-mahjongg
+gnome-extra/gnome-mines
+gnome-extra/gnome-robots
+gnome-extra/gnome-sudoku
+gnome-extra/swell-foop
+gnome-extra/tali
+gnome-extra/gnome-taquin
+gnome-extra/gnome-tetravex
+EOF
+
 printf '%s\n' \
   'gnome-base/gnome ~amd64' \
   'gnome-base/gdm ~amd64' \
