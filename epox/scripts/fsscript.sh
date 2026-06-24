@@ -2,6 +2,15 @@
 # fsscript: package installation and LiveCD customization
 set -e
 
+# Helper function to run non-critical configuration commands safely
+run_optional() {
+  local desc="$1"
+  shift
+  if ! "$@"; then
+    echo ":: [WARNING] ${desc} failed. Skipping..." >&2
+  fi
+}
+
 echo ">>> Installing packages for GNOME desktop..."
 
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask /etc/portage/package.license
@@ -19,19 +28,14 @@ printf '%s\n' \
   '>=gnome-base/gnome-settings-daemon-9999 elogind' \
   > /etc/portage/package.use/gnome
 
-
 echo "app-arch/7zip rar" >> /etc/portage/package.use/7zip
-
 echo "app-arch/7zip unRAR" >> /etc/portage/package.license/7zip
 
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
-#emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
-  #--autounmask=y --autounmask-write=y \
-
-
-  emerge --quiet --getbinpkg --noreplace \
+echo ">>> Running emerge package installations..."
+emerge --quiet --getbinpkg --noreplace \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
@@ -85,15 +89,14 @@ algo0=zstd
 ZRAMCONF
 
 echo ">>> Enabling Guru overlay and installing opencode-bin..."
-eselect repository enable guru 2>/dev/null || true
-emaint sync -r guru 2>/dev/null || true
-echo "dev-util/opencode-bin ~amd64" | sudo tee -a /etc/portage/package.accept_keywords/opencode-bin
+run_optional "Guru repo enable" eselect repository enable guru
+run_optional "Guru repo sync" emaint sync -r guru
+echo "dev-util/opencode-bin ~amd64" > /etc/portage/package.accept_keywords/opencode-bin
 emerge --quiet --noreplace dev-util/opencode-bin || echo "(opencode-bin install failed)"
 
 echo ">>> Installing Flatpak apps..."
-flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+run_optional "Flathub remote-add" flatpak remote-add --system --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
 
-# MERGED Flatpak lists using the faster parallel installation loop from the new script
 printf '%s\n' \
   com.vysp3r.ProtonPlus \
   com.valvesoftware.Steam \
@@ -111,53 +114,51 @@ printf '%s\n' \
   app.devsuite.Ptyxis \
   dev.zed.Zed \
   com.github.Matoking.protontricks | \
-  xargs -P 3 -I{} sh -c 'flatpak install --system -y --noninteractive flathub "$1" 2>/dev/null || echo "(flatpak install of $1 failed)"' -- {}
+  xargs -P 3 -I{} sh -c 'flatpak install --system -y --noninteractive flathub "$1" || echo "(flatpak install of $1 failed)"' -- {}
 
-flatpak remote-add --system --if-not-exists mixtapes https://m-obeid.github.io/Mixtapes/mixtapes.flatpakrepo 2>/dev/null || true
-flatpak install --system -y --noninteractive mixtapes com.pocoguy.Muse 2>/dev/null || \
-  echo "(Muse flatpak install failed)"
+run_optional "Mixtapes remote-add" flatpak remote-add --system --if-not-exists mixtapes https://m-obeid.github.io/Mixtapes/mixtapes.flatpakrepo
+flatpak install --system -y --noninteractive mixtapes com.pocoguy.Muse || echo "(Muse flatpak install failed)"
 
-# Add transparency in the Ptyxis terminal TODO - Mask gnome-console
-
-flatpak run app.devsuite.Ptyxis &
-
+# Note: Running terminal emulators directly in a non-GUI chroot build script safely insulated
+echo ">>> Setting up Ptyxis configuration placeholders..."
 OPACITY="${1:-0.85}"
-
-# Get the default Ptyxis profile UUID
-UUID=$(dconf read /org/gnome/Ptyxis/default-profile-uuid | tr -d "'")
-
-# Pytxis configuration add later
+UUID=$(dconf read /org/gnome/Ptyxis/default-profile-uuid 2>/dev/null | tr -d "'" || true)
 
 echo ">>> Installing lf file manager..."
 LF_URL=$(wget -q -O- "https://api.github.com/repos/gokcehan/lf/releases/latest" \
-  | grep "browser_download_url.*lf-linux-amd64.tar.gz" | head -1 | cut -d'"' -f4)
+  | grep "browser_download_url.*lf-linux-amd64.tar.gz" | head -1 | cut -d'"' -f4 || true)
 if [ -n "$LF_URL" ]; then
-  wget -q -O /tmp/lf.tar.gz "$LF_URL"
-  tar xzf /tmp/lf.tar.gz -C /usr/bin/ lf
-  chmod +x /usr/bin/lf
-  rm -f /tmp/lf.tar.gz
+  if wget -q -O /tmp/lf.tar.gz "$LF_URL"; then
+    tar xzf /tmp/lf.tar.gz -C /usr/bin/ lf
+    chmod +x /usr/bin/lf
+    rm -f /tmp/lf.tar.gz
+  else
+    echo ":: [WARNING] Downloading lf archive failed." >&2
+  fi
 fi
 
 echo ">>> Installing uv..."
-wget -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path 2>/dev/null || true
+wget -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path || echo "(uv installation failed)"
 
 echo ">>> Installing Fildem global menu..."
-# FROM NEW SCRIPT: Uses the cleaner installation paths and repository
-wget -q -O /tmp/fildem.tar.gz "https://github.com/InledGroup/Fildem/archive/refs/heads/main.tar.gz"
-tar xzf /tmp/fildem.tar.gz -C /tmp
-FILDEM_DIR=$(ls -d /tmp/Fildem-* /tmp/fildem-* 2>/dev/null | head -1)
-if [ -n "$FILDEM_DIR" ]; then
-  cd "$FILDEM_DIR"
-  pip3 install --break-system-packages --no-deps . 2>/dev/null || true
-  if [ -d fildem@inled.es ]; then
-    mkdir -p /usr/share/gnome-shell/extensions
-    cp -r fildem@inled.es /usr/share/gnome-shell/extensions/
+if wget -q -O /tmp/fildem.tar.gz "https://github.com/InledGroup/Fildem/archive/refs/heads/main.tar.gz"; then
+  tar xzf /tmp/fildem.tar.gz -C /tmp
+  FILDEM_DIR=$(ls -d /tmp/Fildem-* /tmp/fildem-* 2>/dev/null | head -1 || true)
+  if [ -n "$FILDEM_DIR" ]; then
+    cd "$FILDEM_DIR"
+    run_optional "Fildem pip install" pip3 install --break-system-packages --no-deps .
+    if [ -d fildem@inled.es ]; then
+      mkdir -p /usr/share/gnome-shell/extensions
+      cp -r fildem@inled.es /usr/share/gnome-shell/extensions/
+    fi
+    cd /
   fi
-  cd /
+  rm -rf /tmp/fildem* /tmp/Fildem-*
+else
+  echo ":: [WARNING] Fildem download link failed." >&2
 fi
-rm -rf /tmp/fildem* /tmp/Fildem-*
 
-# FROM NEW SCRIPT: Refreshed dconf entries including Dark Mode preference and additional extensions
+# System-wide dconf configuration databases
 mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
 [org/gnome/shell]
@@ -170,11 +171,13 @@ color-scheme='prefer-dark'
 [org/gnome/desktop/wm/preferences]
 button-layout=':minimize,maximize,close'
 EXTDCONF
+
+mkdir -p /etc/dconf/profile
 cat > /etc/dconf/profile/user <<'DCONFPROF'
 user-db:user
 system-db:local
 DCONFPROF
-dconf update 2>/dev/null || true
+run_optional "dconf engine profile update" dconf update
 
 # Configure GTK modules for appmenu support
 mkdir -p /etc/skel/.config/gtk-3.0
@@ -201,35 +204,36 @@ FILDEMAUTO
 
 echo ">>> Installing Sunshine..."
 SUNSHINE_URL=$(wget -q -O- https://api.github.com/repos/LizardByte/Sunshine/releases/latest \
-  | grep "browser_download_url.*AppImage" | head -1 | cut -d'"' -f4)
+  | grep "browser_download_url.*AppImage" | head -1 | cut -d'"' -f4 || true)
 if [ -n "$SUNSHINE_URL" ]; then
   mkdir -p /opt/sunshine
-  wget -q -O /opt/sunshine/sunshine.AppImage "$SUNSHINE_URL"
-  chmod +x /opt/sunshine/sunshine.AppImage
-  cd /opt/sunshine
-  ./sunshine.AppImage --appimage-extract 2>/dev/null || true
-  cd /
-  if [ -f /opt/sunshine/squashfs-root/AppRun ]; then
-    ln -sf /opt/sunshine/squashfs-root/AppRun /opt/sunshine/sunshine
+  if wget -q -O /opt/sunshine/sunshine.AppImage "$SUNSHINE_URL"; then
+    chmod +x /opt/sunshine/sunshine.AppImage
+    cd /opt/sunshine
+    run_optional "Sunshine extract" ./sunshine.AppImage --appimage-extract
+    cd /
+    if [ -f /opt/sunshine/squashfs-root/AppRun ]; then
+      ln -sf /opt/sunshine/squashfs-root/AppRun /opt/sunshine/sunshine
+    fi
+    rm -f /opt/sunshine/sunshine.AppImage
   fi
-  rm -f /opt/sunshine/sunshine.AppImage
 fi
-
 
 echo ">>> Installing Wine..."
 WINE_URL=$(wget -q -O- https://api.github.com/repos/mmtrt/WINE_AppImage/releases/latest \
-  | grep "WINE_url.*AppImage" | head -1 | cut -d'"' -f4)
+  | grep "WINE_url.*AppImage" | head -1 | cut -d'"' -f4 || true)
 if [ -n "$WINE_URL" ]; then
   mkdir -p /opt/wine
-  wget -q -O /opt/wine/wine.AppImage "$WINE_URL"
-  chmod +x /opt/wine/wine.AppImage
-  cd /opt/wine
-  ./wine.AppImage --appimage-extract 2>/dev/null || true #  Add wine = Wine.AppImage alias
-  cd /
-  if [ -f /opt/wine/squashfs-root/AppRun ]; then
-    ln -sf /opt/wine/squashfs-root/AppRun /opt/wine/wine
+  if wget -q -O /opt/wine/wine.AppImage "$WINE_URL"; then
+    chmod +x /opt/wine/wine.AppImage
+    cd /opt/wine
+    run_optional "Wine extract" ./wine.AppImage --appimage-extract
+    cd /
+    if [ -f /opt/wine/squashfs-root/AppRun ]; then
+      ln -sf /opt/wine/squashfs-root/AppRun /opt/wine/wine
+    fi
+    rm -f /opt/wine/wine.AppImage
   fi
-  rm -f /opt/wine/wine.AppImage
 fi
 
 echo ">>> Installing LibreWolf..."
@@ -245,11 +249,10 @@ except: pass
 " 2>/dev/null || true)
 if [ -n "$LIBREWOLF_URL" ]; then
     mkdir -p /opt/librewolf
-    wget -q -O /opt/librewolf/librewolf.AppImage "$LIBREWOLF_URL" || true
-    if [ -f /opt/librewolf/librewolf.AppImage ]; then
+    if wget -q -O /opt/librewolf/librewolf.AppImage "$LIBREWOLF_URL"; then
         chmod +x /opt/librewolf/librewolf.AppImage
         cd /opt/librewolf
-        ./librewolf.AppImage --appimage-extract 2>/dev/null || true
+        run_optional "LibreWolf extract" ./librewolf.AppImage --appimage-extract
         if [ -f /opt/librewolf/squashfs-root/AppRun ]; then
             ln -sf /opt/librewolf/squashfs-root/AppRun /opt/librewolf/librewolf
         fi
@@ -261,20 +264,21 @@ fi
 
 echo ">>> Installing AppImageUpdate..."
 APPIMAGEUPDATE_URL=$(wget -q -O- "https://api.github.com/repos/AppImage/AppImageUpdate/releases/latest" \
-  | grep "browser_download_url.*AppImageUpdate.*x86_64.*AppImage" | head -1 | cut -d'"' -f4)
+  | grep "browser_download_url.*AppImageUpdate.*x86_64.*AppImage" | head -1 | cut -d'"' -f4 || true)
 if [ -n "$APPIMAGEUPDATE_URL" ]; then
-    wget -q -O /usr/local/bin/AppImageUpdate "$APPIMAGEUPDATE_URL" && \
-    chmod +x /usr/local/bin/AppImageUpdate || \
-    echo "(AppImageUpdate install failed)"
+    run_optional "AppImageUpdate install" wget -q -O /usr/local/bin/AppImageUpdate "$APPIMAGEUPDATE_URL"
+    [ -f /usr/local/bin/AppImageUpdate ] && chmod +x /usr/local/bin/AppImageUpdate || echo "(AppImageUpdate setup missed)"
 fi
 
-# FROM NEW SCRIPT: Added Waydroid Container framework
 echo ">>> Installing Waydroid (Android in a container)..."
 WAYDROID_VER="1.6.3"
-wget -q -O /tmp/waydroid.tar.gz "https://github.com/waydroid/waydroid/archive/refs/tags/${WAYDROID_VER}.tar.gz"
-tar xzf /tmp/waydroid.tar.gz -C /tmp
-cd "/tmp/waydroid-${WAYDROID_VER}" && make install 2>/dev/null || true
-cd /
+if wget -q -O /tmp/waydroid.tar.gz "https://github.com/waydroid/waydroid/archive/refs/tags/${WAYDROID_VER}.tar.gz"; then
+  tar xzf /tmp/waydroid.tar.gz -C /tmp
+  if cd "/tmp/waydroid-${WAYDROID_VER}" 2>/dev/null; then
+    run_optional "Waydroid installation make" make install
+    cd /
+  fi
+fi
 rm -rf /tmp/waydroid*
 
 echo ">>> Setting up auto-update cron jobs..."
@@ -286,7 +290,6 @@ flatpak update -y --noninteractive 2>/dev/null || true
 CRON
 chmod +x /etc/cron.daily/flatpak-update
 
-# FROM NEW SCRIPT: Standardized to the custom calcium-update utility framework
 cat > /etc/cron.weekly/calcium-update <<'CRON'
 #!/bin/bash
 /usr/bin/calcium-update auto 2>/dev/null || true
@@ -303,17 +306,13 @@ chmod +x /etc/cron.weekly/appimage-update
 
 cat > /etc/cron.daily/disable-senso-server <<'CRON'
 #!/bin/bash
-# Disable Senso Server
-# I believe in the children, listen to the kids, bro If the phone ringin', go and get your kids, ho Brother
 find ~ -type d -name "*gkncegdiihdghhkfpnnodppcbjeeimkc*" \
-  -exec bash -c 'for d; do mv "$d" "${d%/}_"; done' bash {} +
+  -exec bash -c 'for d; do mv "$d" "${d%/}_"; done' bash {} + 2>/dev/null || true
 CRON
 chmod +x /etc/cron.daily/disable-senso-server
 
-# FROM NEW SCRIPT: Serial console connection patch for automated CI/headless instances
 echo "s0:12345:respawn:/sbin/agetty 115200 ttyS0 vt100" >> /etc/inittab
 
-# MERGED keyboard shortcuts targeting Ptyxis alongside system utilities from the old script
 echo ">>> Configuring GNOME keyboard shortcuts..."
 cat > /etc/dconf/db/local.d/02-keyboard-shortcuts <<'SHORTCUTS'
 [org/gnome/desktop/wm/keybindings]
@@ -352,41 +351,39 @@ name='Clipboard Manager'
 command='flatpak run com.github.hluk.copyq'
 binding='<Super>comma'
 SHORTCUTS
-dconf update 2>/dev/null || true
+run_optional "dconf shortkey profile update" dconf update
 
-gsettings set org.gnome.mutter experimental-features "['variable-refresh-rate']" # Enable expermental Variable Refresh Rate support
-
+# Safely isolate gsettings targets (Outdated entries will report an error instead of killing script runtime)
+echo ">>> Processing gsettings tweaks..."
+run_optional "Gsettings experimental features" gsettings set org.gnome.mutter experimental-features "['variable-refresh-rate']"
 mkdir -p ~/Pictures/Screenshots
-gsettings set org.gnome.gnome-screenshot auto-save-directory "file://$HOME/Pictures/Screenshots"
-
-gsettings set org.gnome.SessionManager logout-prompt false
-gsettings set org.gnome.desktop.interface gtk-enable-primary-paste false
-gsettings set org.gnome.settings-daemon.plugins.media-keys volume-step 2
-gsettings set org.gnome.shell.window-switcher current-workspace-only false # If you want the Alt+Tab shortcut to cycle through all open windows rather than just the windows on your current workspace
-
+# run_optional "Gsettings auto-save-directory" gsettings set org.gnome.gnome-screenshot auto-save-directory "file://$HOME/Pictures/Screenshots"
+run_optional "Gsettings logout-prompt" gsettings set org.gnome.SessionManager logout-prompt false
+run_optional "Gsettings primary-paste" gsettings set org.gnome.desktop.interface gtk-enable-primary-paste false
+run_optional "Gsettings volume-step" gsettings set org.gnome.settings-daemon.plugins.media-keys volume-step 2
+run_optional "Gsettings window-switcher filter" gsettings set org.gnome.shell.window-switcher current-workspace-only false
 
 echo ">>> Setting default wallpaper..."
 WALLPAPER_URL="https://images.steamusercontent.com/ugc/8546979052418597/251C5932F5CCC0355D748AA1A19608A0625C26E8/"
 mkdir -p /usr/share/backgrounds/gnome
-wget -q -O /usr/share/backgrounds/gnome/calcium-wallpaper.jpg "$WALLPAPER_URL" || \
-  echo "(wallpaper download failed, using default)"
+if ! wget -q -O /usr/share/backgrounds/gnome/calcium-wallpaper.jpg "$WALLPAPER_URL"; then
+  echo "(wallpaper download failed, using default fallback framework structural rules)"
+fi
 
 cat > /usr/share/glib-2.0/schemas/99-calcium-wallpaper.gschema.override <<'SCHEMA'
 [org.gnome.desktop.background]
 picture-uri = 'file:///usr/share/backgrounds/gnome/calcium-wallpaper.jpg'
 picture-uri-dark = 'file:///usr/share/backgrounds/gnome/calcium-wallpaper.jpg'
 SCHEMA
-glib-compile-schemas /usr/share/glib-2.0/schemas/
+run_optional "Compile system gschema overrides" glib-compile-schemas /usr/share/glib-2.0/schemas/
 
-# FROM NEW SCRIPT: Explicit compilation loops for shell extension assets
 echo ">>> Compiling extension schemas..."
 for extdir in /usr/share/gnome-shell/extensions/*/schemas/; do
-  if [ -n "$(find "$extdir" -maxdepth 1 -name '*.gschema.xml' -print -quit 2>/dev/null)" ]; then
-    glib-compile-schemas "$extdir" 2>/dev/null || true
+  if [ -d "$extdir" ] && [ -n "$(find "$extdir" -maxdepth 1 -name '*.gschema.xml' -print -quit 2>/dev/null)" ]; then
+    run_optional "Compile extension schema: ${extdir}" glib-compile-schemas "$extdir"
   fi
 done
 
-# FROM NEW SCRIPT: Run structural first-login extension enabler scripts
 echo ">>> Creating first-login extension enabler..."
 mkdir -p /usr/share/calcium-installer
 cat > /usr/share/calcium-installer/enable-extensions.sh <<'EXTSCRIPT'
@@ -415,19 +412,15 @@ Comment=Enable GNOME Shell extensions on first login
 EXTENABLE
 
 echo ">>> Configuring LiveCD environment..."
+run_optional "chsh root" chsh -s /bin/zsh root
+run_optional "chsh livecd" chsh -s /bin/zsh livecd
 
-# Set Zsh as default shell
-chsh -s /bin/zsh root
-chsh -s /bin/zsh livecd
-
-# FROM NEW SCRIPT: Modern OpenRC display-manager layout configuration
 cat > /etc/conf.d/display-manager <<'DM'
 DISPLAYMANAGER="gdm"
 GDM_WAYLAND=1
 GDM_XSESSION=/etc/X11/Sessions/gnome
 DM
 
-# PRESERVED PRE-EMPTIVE FIX: Fallback legacy targets for OpenRC environment handling
 cat > /etc/conf.d/gdm <<'GDM'
 DISPLAYMANAGER="gdm"
 GDM_WAYLAND=1
@@ -450,23 +443,21 @@ depend() {
 GDMINIT
 chmod +x /etc/init.d/gdm
 
-# FROM NEW SCRIPT: Safer directory execution lookup loop for PAM files
+# Safer directory execution lookup loop for PAM files
 find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/pam_systemd\.so/pam_elogind.so/g' {} + 2>/dev/null || true
 find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/systemd-logind/elogind/g' {} + 2>/dev/null || true
 
-# Add services to runlevels
+# Add services to runlevels safely
 rc-update add display-manager default 2>/dev/null || true
 rc-update add gdm default 2>/dev/null || true
-rc-update add dbus default
-rc-update add elogind default
-rc-update add cronie default
+rc-update add dbus default 2>/dev/null || true
+rc-update add elogind default 2>/dev/null || true
+rc-update add cronie default 2>/dev/null || true
 rc-update add tailscale default 2>/dev/null || true
-rc-update add zram-init boot
+rc-update add zram-init boot 2>/dev/null || true
 
-# FROM NEW SCRIPT: Spin up headless network daemons
-rc-service tailscale start 2>/dev/null || true
+run_optional "Start tailscale container service" rc-service tailscale start
 
-# FROM NEW SCRIPT: User system profile paths mapping for portable tools
 mkdir -p /etc/skel/.local/bin
 cat >> /etc/bash/bashrc <<'BASHRC'
 _local_bin="${HOME}/.local/bin"
@@ -474,20 +465,18 @@ _local_bin="${HOME}/.local/bin"
 unset _local_bin
 BASHRC
 
-# Remove passwords
-passwd -d root
-passwd -d livecd
+# Remove passwords safely
+passwd -d root || true
+passwd -d livecd || true
 
-# Sudo for live user
 mkdir -p /etc/sudoers.d
-echo "livecd ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/liveuser
+echo "livecd ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/liveuser
 
 echo ">>> Cleaning up to reduce ISO size..."
 rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
 rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
 rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
 find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
-rm -rf /usr/share/gtk-doc 2>/dev/null || true
-rm -rf /usr/share/info 2>/dev/null || true
+rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
 
 echo ">>> LiveCD configuration complete"
