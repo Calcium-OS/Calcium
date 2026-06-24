@@ -75,7 +75,8 @@ emerge --quiet --getbinpkg --noreplace \
   sys-boot/grub \
   app-arch/7zip \
   app-arch/zpaq \
-  net-vpn/tailscale
+  net-vpn/tailscale \
+  gnome-extra/gnome-shell-extension-gsconnect
 
 echo ">>> Configuring zram swap..."
 cat > /etc/conf.d/zram-init <<'ZRAMCONF'
