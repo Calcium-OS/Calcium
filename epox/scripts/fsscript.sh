@@ -69,6 +69,7 @@ id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage
   media-libs/gsound \
   sys-boot/grub \
   app-arch/7zip \
+  app-arch/zpaq \
   net-vpn/tailscale
 
 echo ">>> Configuring zram swap..."
