@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Sunshine
+Comment=GameStream host for Moonlight
+Exec=/opt/sunshine/sunshine
+Icon=sunshine
+Categories=Network;
+Terminal=false
+StartupNotify=false
+X-GNOME-AutostartedByDefault=true

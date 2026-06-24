@@ -1,5 +1,6 @@
 # GNOME ~amd64 keywords for LiveCD
-gnome-base/gnome ~amd64
-gnome-base/gnome-core ~amd64
-gnome-base/gdm ~amd64
-gnome-base/gnome-shell ~amd64
+gnome-base/* ~amd64
+x11-wm/* ~amd64
+media-libs/gsound ~amd64
+sys-kernel/gentoo-kernel-bin ~amd64
+sys-kernel/linux-firmware ~amd64

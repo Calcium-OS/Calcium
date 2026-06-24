@@ -1,0 +1,143 @@
+#!/bin/bash
+set -e
+
+CONFIG="/etc/calcium-release"
+REPO="Calcium-OS/Calcium"
+BACKUP_DIR="/var/backups/calcium-update"
+WORK_DIR="/var/tmp/calcium-update"
+
+[ -f "$CONFIG" ] && . "$CONFIG"
+CALCIUM_VERSION="${CALCIUM_VERSION:-0.0.0}"
+
+check() {
+    echo "Current version: $CALCIUM_VERSION"
+    echo "Checking for updates..."
+
+    LATEST=$(wget -q -O- "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null | python3 -c "
+import json,sys
+try:
+    d=json.load(sys.stdin)
+    print(d.get('tag_name','').lstrip('v'))
+except: pass
+" 2>/dev/null || true)
+
+    if [ -z "$LATEST" ]; then
+        echo "Failed to check for updates (no network or API unavailable)"
+        return 1
+    fi
+
+    echo "Latest version: $LATEST"
+
+    if [ "$LATEST" = "$CALCIUM_VERSION" ]; then
+        echo "You are up to date!"
+        return 0
+    fi
+
+    echo "Update available: $CALCIUM_VERSION -> $LATEST"
+    echo "$LATEST" > /tmp/calcium-latest-version
+    return 2
+}
+
+download() {
+    VERSION=$(cat /tmp/calcium-latest-version 2>/dev/null || true)
+    if [ -z "$VERSION" ]; then
+        echo "No pending update. Run 'calcium-update check' first."
+        return 1
+    fi
+
+    mkdir -p "$WORK_DIR"
+    TARBALL_URL="https://github.com/$REPO/releases/download/v$VERSION/calcium-rootfs-v$VERSION.tar.xz"
+
+    echo "Downloading rootfs tarball for v$VERSION..."
+    wget -q --show-progress -O "$WORK_DIR/rootfs.tar.xz" "$TARBALL_URL"
+
+    echo "Download complete: $WORK_DIR/rootfs.tar.xz ($(du -h "$WORK_DIR/rootfs.tar.xz" | cut -f1))"
+}
+
+apply() {
+    if [ ! -f "$WORK_DIR/rootfs.tar.xz" ]; then
+        echo "No update downloaded. Run 'calcium-update download' first."
+        return 1
+    fi
+
+    VERSION=$(cat /tmp/calcium-latest-version 2>/dev/null || true)
+    TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+    echo "Creating system backup in $BACKUP_DIR/$TIMESTAMP ..."
+    mkdir -p "$BACKUP_DIR/$TIMESTAMP"
+
+    tar -czf "$BACKUP_DIR/$TIMESTAMP/etc.tar.gz" -C / etc/ 2>/dev/null || true
+    tar -czf "$BACKUP_DIR/$TIMESTAMP/var.tar.gz" -C / var/lib/ var/spool/ 2>/dev/null || true
+    tar -czf "$BACKUP_DIR/$TIMESTAMP/usr-local.tar.gz" -C / usr/local/ 2>/dev/null || true
+    echo "$CALCIUM_VERSION" > "$BACKUP_DIR/$TIMESTAMP/prev-version"
+
+    # Keep only last 3 backups
+    ls -1t "$BACKUP_DIR" 2>/dev/null | tail -n +4 | while read d; do
+        rm -rf "$BACKUP_DIR/$d"
+    done
+
+    echo "Applying update to v$VERSION ..."
+    tar -xJf "$WORK_DIR/rootfs.tar.xz" \
+        --exclude=etc \
+        --exclude=home \
+        --exclude=var \
+        --exclude=root \
+        -C /
+
+    # Update version
+    echo "CALCIUM_VERSION=$VERSION"
+    echo "CALCIUM_REPO=$REPO" > "$CONFIG"
+    echo "CALCIUM_VERSION=$VERSION" >> "$CONFIG"
+
+    rm -f "$WORK_DIR/rootfs.tar.xz" /tmp/calcium-latest-version
+
+    echo ""
+    echo "Update to v$VERSION complete!"
+    echo "A reboot is recommended to ensure all services use the new files."
+}
+
+auto() {
+    check || true
+    [ -f /tmp/calcium-latest-version ] || return 0
+    download
+    apply
+}
+
+rollback() {
+    if [ -n "$1" ] && [ -d "$BACKUP_DIR/$1" ]; then
+        echo "Restoring backup: $1"
+        for f in etc var usr-local; do
+            [ -f "$BACKUP_DIR/$1/$f.tar.gz" ] && tar -xzf "$BACKUP_DIR/$1/$f.tar.gz" -C / 2>/dev/null || true
+        done
+        PREV=$(cat "$BACKUP_DIR/$1/prev-version" 2>/dev/null || echo "unknown")
+        echo "Restored to version: $PREV"
+        echo "CALCIUM_VERSION=$PREV"
+        echo "CALCIUM_REPO=$REPO" > "$CONFIG"
+        echo "CALCIUM_VERSION=$PREV" >> "$CONFIG"
+        echo "Rollback complete. Reboot recommended."
+        return
+    fi
+
+    echo "Available backups:"
+    ls -1t "$BACKUP_DIR" 2>/dev/null || echo "  (none)"
+    echo ""
+    echo "Usage: calcium-update rollback <backup-name>"
+}
+
+case "${1:-auto}" in
+    check) check ;;
+    download) download ;;
+    apply) apply ;;
+    auto) auto ;;
+    rollback) rollback "$2" ;;
+    *)
+        echo "Calcium OS Update Tool"
+        echo ""
+        echo "Usage:"
+        echo "  calcium-update               Check, download, and apply (auto)"
+        echo "  calcium-update check         Check for available update"
+        echo "  calcium-update download      Download latest update"
+        echo "  calcium-update apply         Apply downloaded update"
+        echo "  calcium-update rollback [n]  Restore backup from last update"
+        ;;
+esac

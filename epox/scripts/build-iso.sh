@@ -5,7 +5,7 @@ set -euo pipefail
 
 CATALYST_STOREDIR="${CATALYST_STOREDIR:-/var/tmp/catalyst}"
 SPEC_FILE="${SPEC_FILE:-/repo/epox/gentoo-gnome.spec}"
-SEED_URL="${SEED_URL:-https://distfiles.gentoo.org/releases/amd64/autobuilds/current-stage3-amd64-openrc/stage3-amd64-openrc-20250101T163059Z.tar.xz}"
+STAGE3_BASE="${STAGE3_BASE:-https://distfiles.gentoo.org/releases/amd64/autobuilds}"
 
 echo "==> Setting up catalyst"
 
@@ -19,8 +19,10 @@ fi
 echo "==> Downloading seed stage3"
 SEED_PATH="$CATALYST_STOREDIR/builds/default/stage3-amd64-openrc-latest.tar.xz"
 if [ ! -f "$SEED_PATH" ]; then
-  wget -q "$SEED_URL" -O /tmp/seed-stage3.tar.xz
+  LATEST=$(wget -q -O - "$STAGE3_BASE/latest-stage3-amd64-openrc.txt" | sed -n '/^[0-9]/p' | head -1 | cut -d' ' -f1)
+  wget -q "$STAGE3_BASE/$LATEST" -O /tmp/seed-stage3.tar.xz
   cp /tmp/seed-stage3.tar.xz "$SEED_PATH"
+  echo "Seed: $LATEST"
 fi
 
 echo "==> Running catalyst"
