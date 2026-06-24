@@ -126,25 +126,7 @@ OPACITY="${1:-0.85}"
 # Get the default Ptyxis profile UUID
 UUID=$(dconf read /org/gnome/Ptyxis/default-profile-uuid | tr -d "'")
 
-if [[ -z "$UUID" ]]; then
-    echo "Error: Could not determine Ptyxis profile UUID."
-    exit 1
-fi
-
-echo "Found Ptyxis profile UUID: $UUID"
-echo "Setting opacity to $OPACITY..."
-
-flatpak run --command=gsettings app.devsuite.Ptyxis \
-    set "org.gnome.Ptyxis.Profile:/org/gnome/Ptyxis/Profiles/${UUID}/" \
-    opacity "$OPACITY"
-
-if [[ $? -eq 0 ]]; then
-    echo "Opacity successfully set to $OPACITY"
-    echo "You may need to restart Ptyxis for the change to take effect."
-else
-    echo "Failed to update opacity."
-    exit 1
-fi
+# Pytxis configuration add later
 
 echo ">>> Installing lf file manager..."
 LF_URL=$(wget -q -O- "https://api.github.com/repos/gokcehan/lf/releases/latest" \
