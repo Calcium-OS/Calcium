@@ -24,12 +24,14 @@ jobs:
             portage_dir: epox/portage
             portage_confdir: /etc/catalyst/portage
             target: gnome
+            version_stamp: gnome-openrc
           - name: server
             spec_file: epox/gentoo-server.spec
             iso_name: gentoo-server-openrc-amd64
             portage_dir: epox/portage-server
             portage_confdir: /etc/catalyst/portage-server
             target: server
+            version_stamp: server-openrc
 
     runs-on: blacksmith-4vcpu-ubuntu-2404
     container:
@@ -131,6 +133,47 @@ jobs:
           tar -C "$CATALYST_STOREDIR"/repos/gentoo \
             -cf - . \
             | tar2sqfs "$SNAPSHOT" -q -f -j1 -c gzip
+
+      - name: Generate catalyst state cache key
+        id: cache-state-key
+        run: |
+          set -euo pipefail
+          HASH=$(sha256sum \
+            ${{ matrix.variant.spec_file }} \
+            epox/catalyst.conf \
+            ${{ matrix.variant.portage_dir }}/make.conf \
+            epox/env/catalystrc \
+            | sha256sum | cut -d' ' -f1)
+          echo "key=catalyst-state-${{ matrix.variant.target }}-$HASH" >> "$GITHUB_OUTPUT"
+
+      - name: Cache catalyst build state (iterative/delta builds)
+        uses: actions/cache@v4
+        with:
+          path: /var/tmp/catalyst/tmp
+          key: ${{ steps.cache-state-key.outputs.key }}
+
+      - name: Manage catalyst autoresume for delta builds
+        run: |
+          STATE_DIR="$CATALYST_STOREDIR/tmp/default/livecd-stage2-${{ matrix.variant.version_stamp }}"
+          if [ -d "$STATE_DIR" ]; then
+            echo "Cached catalyst state found. Removing autoresume markers for post-build steps..."
+            ls -la "$STATE_DIR"/.autoresume-* 2>/dev/null || true
+            for marker in "$STATE_DIR"/.autoresume-*; do
+              [ -f "$marker" ] || continue
+              name=$(basename "$marker")
+              case "$name" in
+                .autoresume-setup|.autoresume-build)
+                  echo "  Keeping: $name (cached, will skip)"
+                  ;;
+                *)
+                  echo "  Removing: $name (will re-run)"
+                  rm -f "$marker"
+                  ;;
+              esac
+            done
+          else
+            echo "No cached catalyst state found, will do full build"
+          fi
 
       - name: Build livecd-stage2 ISO via catalyst
         run: |
