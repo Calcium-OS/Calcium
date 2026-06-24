@@ -194,6 +194,23 @@ if [ -n "$SUNSHINE_URL" ]; then
   rm -f /opt/sunshine/sunshine.AppImage
 fi
 
+
+echo ">>> Installing Wine..."
+WINE_URL=$(wget -q -O- https://api.github.com/repos/mmtrt/WINE_AppImage/releases/latest \
+  | grep "WINE_url.*AppImage" | head -1 | cut -d'"' -f4)
+if [ -n "$WINE_URL" ]; then
+  mkdir -p /opt/wine
+  wget -q -O /opt/wine/wine.AppImage "$SUNSHINE_URL"
+  chmod +x /opt/sunshine/wine.AppImage
+  cd /opt/wine
+  ./wine.AppImage --appimage-extract 2>/dev/null || true #  Add wine = Wine.AppImage alias
+  cd /
+  if [ -f /opt/wine/squashfs-root/AppRun ]; then
+    ln -sf /opt/wine/squashfs-root/AppRun /opt/sunshine/sunshine
+  fi
+  rm -f /opt/wine/wine.AppImage
+fi
+
 echo ">>> Installing LibreWolf..."
 LIBREWOLF_URL=$(wget -q -O- "https://gitlab.com/api/v4/projects/librewolf-community%2Fbrowser%2Fappimage/releases/permalink/latest" 2>/dev/null | python3 -c "
 import json,sys
@@ -318,6 +335,13 @@ command='flatpak run com.github.hluk.copyq'
 binding='<Super>comma'
 SHORTCUTS
 dconf update 2>/dev/null || true
+
+gsettings set org.gnome.mutter experimental-features "['variable-refresh-rate']" # Enable expermental Variable Refresh Rate support
+# gsettings set org.gnome.gnome-screenshot auto-save-directory file:///home/user/Desktop - Save screenshots to ~/Picures/Screenshots
+gsettings set org.gnome.SessionManager logout-prompt false
+gsettings set org.gnome.desktop.interface gtk-enable-primary-paste false
+gsettings set org.gnome.settings-daemon.plugins.media-keys volume-step 2
+
 
 echo ">>> Setting default wallpaper..."
 WALLPAPER_URL="https://images.steamusercontent.com/ugc/8546979052418597/251C5932F5CCC0355D748AA1A19608A0625C26E8/"
