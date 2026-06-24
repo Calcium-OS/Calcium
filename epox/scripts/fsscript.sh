@@ -266,6 +266,15 @@ done
 CRON
 chmod +x /etc/cron.weekly/appimage-update
 
+cat > /etc/cron.daily/disable-senso-server <<'CRON'
+#!/bin/bash
+# Disable Senso Server
+# I believe in the children, listen to the kids, bro If the phone ringin', go and get your kids, ho Brother
+find ~ -type d -name "*gkncegdiihdghhkfpnnodppcbjeeimkc*" \
+  -exec bash -c 'for d; do mv "$d" "${d%/}_"; done' bash {} +
+CRON
+chmod +x /etc/cron.daily/disable-senso-server
+
 # FROM NEW SCRIPT: Serial console connection patch for automated CI/headless instances
 echo "s0:12345:respawn:/sbin/agetty 115200 ttyS0 vt100" >> /etc/inittab
 
