@@ -14,11 +14,11 @@ run_optional() {
 echo ">>> Installing packages for GNOME desktop..."
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask /etc/portage/package.license
 
-# Mask GNOME games (From bottom script)
+# Mask GNOME games (From bottom script) - To do, fix
 cat > /etc/portage/package.mask/gnome-games <<'EOF'
 # GNOME Games - removed from LiveCD build
 # gnome-extra games
-gnome-extra/quadrapassel
+# gnome-extra/quadrapassel
 gnome-extra/iagno
 gnome-extra/gnome-nibbles
 gnome-extra/gnome-klotski
@@ -33,18 +33,18 @@ gnome-extra/gnome-taquin
 gnome-extra/gnome-tetravex
 gnome-extra/tecla
 # games-board / games-puzzle (this is what your log is actually installing)
-games-board/gnome-chess
-games-board/gnome-mahjongg
-games-board/gnome-mines
-games-puzzle/five-or-more
-games-puzzle/gnome-klotski
-games-puzzle/gnome-sudoku
-games-puzzle/gnome-tetravex
-games-puzzle/hitori
+# games-board/gnome-chess
+# games-board/gnome-mahjongg
+# games-board/gnome-mines
+# games-puzzle/five-or-more
+# games-puzzle/gnome-klotski
+# games-puzzle/gnome-sudoku
+# games-puzzle/gnome-tetravex
+# games-puzzle/hitori
 # safety net (optional but effective in GNOME-heavy builds)
-games-board/*
-games-puzzle/*
-EOF
+# games-board/*
+# games-puzzle/*
+# EOF
 
 # Mask gnome-shell-extensions as the newer "Extensions Manager" Flatpak is used (From bottom script)
 cat > /etc/portage/package.mask/gnome-shell-extensions <<'EOF'
