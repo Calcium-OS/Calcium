@@ -344,6 +344,7 @@ gsettings set org.gnome.gnome-screenshot auto-save-directory "file://$HOME/Pictu
 gsettings set org.gnome.SessionManager logout-prompt false
 gsettings set org.gnome.desktop.interface gtk-enable-primary-paste false
 gsettings set org.gnome.settings-daemon.plugins.media-keys volume-step 2
+gsettings set org.gnome.shell.window-switcher current-workspace-only false # If you want the Alt+Tab shortcut to cycle through all open windows rather than just the windows on your current workspace
 
 
 echo ">>> Setting default wallpaper..."
