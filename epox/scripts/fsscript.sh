@@ -119,6 +119,7 @@ flatpak install --system -y --noninteractive mixtapes com.pocoguy.Muse 2>/dev/nu
 
 # Add transparency in the Ptyxis terminal TODO - Mask gnome-console
 
+flatpak run app.devsuite.Ptyxis &
 
 OPACITY="${1:-0.85}"
 
