@@ -9,19 +9,20 @@ eselect profile set 1
 
 echo ">>> Installing packages for server edition..."
 
-mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.license
-
-mkdir -p /etc/portage/package.license
+mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.license /etc/portage/package.mask
 echo "sys-kernel/linux-firmware linux-fw-redistributable" > /etc/portage/package.license/server
 
 # Disable multi-lib/32 bit for whatever is pulling Zlib (Git?)
 
 echo "sys-libs/zlib -abi_x86_32 -abi_x86_64" >> /etc/portage/package.use/zlib
 
+echo "app-accessibility/at-spi2-core" >> /etc/portage/package.mask/server
+echo "sys-apps/systemd" >> /etc/portage/package.mask/server
+
 # Create system accounts
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
-emerge --quiet --getbinpkg --binpkg-respect-use=n --noreplace \
+emerge --quiet --getbinpkg --noreplace \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   net-misc/dhcpcd \
