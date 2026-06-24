@@ -454,7 +454,6 @@ echo ">>> Cleaning up to reduce ISO size..."
 rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
 rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
 rm -rf /var/cache /home/livecd/var/cache 2>/dev/null || true # Removes binhost
-
 rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
 find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
 rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
