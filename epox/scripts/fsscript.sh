@@ -4,7 +4,7 @@ set -e
 
 echo ">>> Installing packages for GNOME desktop..."
 
-mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask
+mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask /etc/portage/package.license
 
 printf '%s\n' \
   'gnome-base/gnome ~amd64' \
