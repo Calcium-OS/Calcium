@@ -33,6 +33,15 @@ gnome-extra/gnome-taquin
 gnome-extra/gnome-tetravex
 EOF
 
+# Mask gnome-shell-extensions as the newer "Extensions Manager" Flatpak is used 
+
+cat > /etc/portage/package.mask/gnome-shell-extensions <<'EOF'
+gnome-extra/gnome-shell-extensions
+EOF
+
+
+
+
 printf '%s\n' \
   'gnome-base/gnome ~amd64' \
   'gnome-base/gdm ~amd64' \
