@@ -80,6 +80,7 @@ ZRAMCONF
 echo ">>> Enabling Guru overlay and installing opencode-bin..."
 eselect repository enable guru 2>/dev/null || true
 emaint sync -r guru 2>/dev/null || true
+echo "dev-util/opencode-bin ~amd64" | sudo tee -a /etc/portage/package.accept_keywords/opencode-bin
 emerge --quiet --noreplace dev-util/opencode-bin || echo "(opencode-bin install failed)"
 
 echo ">>> Installing Flatpak apps..."
