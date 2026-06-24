@@ -18,7 +18,11 @@ printf '%s\n' \
   '>=gnome-base/gdm-9999 elogind' \
   '>=gnome-base/gnome-settings-daemon-9999 elogind' \
   > /etc/portage/package.use/gnome
-  
+
+printf '%s\n' \
+  'app-arch/7zip rar' \
+  > /etc/portage/package.use/7zip 
+
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
@@ -64,6 +68,7 @@ id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage
   dev-python/pygobject \
   media-libs/gsound \
   sys-boot/grub \
+  app-arch/7zip \
   net-vpn/tailscale
 
 echo ">>> Configuring zram swap..."
