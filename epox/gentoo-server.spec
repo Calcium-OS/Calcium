@@ -25,7 +25,7 @@ livecd/iso: /gentoo-server-openrc-amd64.iso
 livecd/type: generic-livecd
 livecd/volid: Gentoo_Server_Live
 
-livecd/bootargs: root=live:CDLABEL=Gentoo_Server_Live quiet
+livecd/bootargs: root=live:CDLABEL=Gentoo_Server_Live console=ttyS0,115200 quiet
 
 boot/kernel/gentoo/dracut_args: --gzip --no-hostonly -a dmsquash-live -a dm -o i18n -o crypt -I busybox
 

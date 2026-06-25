@@ -10,6 +10,7 @@ on:
       - 'epox/rootfs-overlay/etc/calcium-release'
       - 'epox/rootfs-overlay/usr/share/calcium-installer/**'
       - 'epox/scripts/fsscript.sh'
+      - 'epox/scripts/fsscript-server.sh'
       - '.github/workflows/test-installer.yml'
   pull_request:
     branches: [main]
@@ -20,13 +21,16 @@ on:
       - 'epox/rootfs-overlay/etc/calcium-release'
       - 'epox/rootfs-overlay/usr/share/calcium-installer/**'
       - 'epox/scripts/fsscript.sh'
+      - 'epox/scripts/fsscript-server.sh'
+      - '.github/workflows/test-installer.yml'
   workflow_run:
     workflows: ["Build Gentoo ISOs"]
     types: [completed]
   workflow_dispatch:
 
 env:
-  ISO_NAME: gentoo-gnome-openrc-amd64
+  GNOME_ISO: gentoo-gnome-openrc-amd64
+  SERVER_ISO: gentoo-server-openrc-amd64
 
 jobs:
   unit-test:
@@ -90,10 +94,10 @@ jobs:
           bash -n ../../../../scripts/fsscript.sh
           echo "fsscript.sh syntax OK"
 
-      - name: List all extensions
+      - name: Validate fsscript-server.sh syntax
         run: |
-          echo "=== GNOME Extensions ==="
-          ls -1 ../../../usr/share/gnome-shell/extensions/ 2>/dev/null || echo "No extensions dir"
+          bash -n ../../../../scripts/fsscript-server.sh
+          echo "fsscript-server.sh syntax OK"
 
       - name: Validate calcium-update syntax
         run: |
@@ -126,6 +130,16 @@ jobs:
 
   integration-test:
     if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - name: gnome
+            iso_name: gentoo-gnome-openrc-amd64
+            cdlab: Gentoo_GNOME_Live
+          - name: server
+            iso_name: gentoo-server-openrc-amd64
+            cdlab: Gentoo_Server_Live
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
@@ -134,90 +148,102 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            qemu-system-x86_64 qemu-utils ovmf genisoimage expect
+            qemu-system-x86 qemu-utils ovmf genisoimage expect
 
       - name: Download ISO from build
         uses: actions/download-artifact@v4
         with:
-          name: ${{ env.ISO_NAME }}
+          name: ${{ matrix.variant.iso_name }}
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ github.token }}
-
-      - name: Extract kernel and initrd from ISO
-        run: |
-          FILES=$(isoinfo -R -f -i ${{ env.ISO_NAME }}.iso)
-          KERNEL=$(echo "$FILES" | grep -E 'vmlinuz|vmlinux|kernel' | head -1)
-          INITRD=$(echo "$FILES" | grep -E 'initramfs|initrd' | head -1)
-          echo "Kernel: $KERNEL  Initrd: $INITRD"
-          isoinfo -R -x "$KERNEL" -i ${{ env.ISO_NAME }}.iso > /tmp/vmlinuz
-          isoinfo -R -x "$INITRD" -i ${{ env.ISO_NAME }}.iso > /tmp/initrd.img
 
       - name: Create disk image
         run: qemu-img create -f qcow2 /tmp/disk.qcow2 20G
 
-      - name: Install to disk via QEMU
+      - name: Install to disk via QEMU (LUKS)
         run: |
           expect << 'INSTALLEOF'
-            set timeout 600
+            set timeout 900
+            set ready 0
             spawn qemu-system-x86_64 -enable-kvm -m 4096 -smp 2 \
-              -cdrom /tmp/${{ env.ISO_NAME }}.iso \
+              -cdrom /tmp/${{ matrix.variant.iso_name }}.iso \
               -drive file=/tmp/disk.qcow2,format=qcow2,if=virtio \
-              -kernel /tmp/vmlinuz -initrd /tmp/initrd.img \
-              -append "root=live:CDLABEL=Gentoo_GNOME_Live console=ttyS0,115200 quiet" \
-              -nographic -serial mon:stdio -no-reboot
-            expect "login:"
+              -bios /usr/share/ovmf/OVMF.fd \
+              -nographic -serial mon:stdio -no-reboot -nic user
+            expect {
+              -re {login:.*#?} { set ready 1 }
+              -re {localhost.*login:} { set ready 1 }
+              "localhost" { set ready 1 }
+              timeout { puts "Timeout waiting for login prompt"; exit 1 }
+              eof { puts "Unexpected EOF before login"; exit 1 }
+            }
+            if { $ready == 0 } {
+              puts "Did not reach login prompt"
+              exit 1
+            }
+            sleep 5
             send "root\r"
-            expect "# "
+            expect {
+              -re {#\s*$} { }
+              -re {[Pp]assword} { send "\r"; expect -re {#\s*$} }
+              timeout { puts "Timeout waiting for root shell"; exit 1 }
+            }
             send "cat > /etc/calcium-install.json << 'EOF'\n"
-            send "{\"disk\": \"/dev/vda\", \"luks_password\": \"test\", \"hostname\": \"calcium-test\", \"username\": \"calcium\", \"password\": \"test\"}\n"
+            send "{\"disk\": \"/dev/vda\", \"luks_password\": \"test\", \"hostname\": \"calcium-test\", \"username\": \"calcium\", \"password\": \"test\", \"root_password\": \"test\"}\n"
             send "EOF\n"
-            expect "# "
+            expect -re {#\s*$}
             send "calcium-install-unattended /etc/calcium-install.json 2>&1\n"
-            expect "Installation complete!"
+            expect {
+              "Installation complete!" { }
+              -re {FAILED|failed|error} { puts "Installation failed"; exit 1 }
+              timeout { puts "Timeout during installation"; exit 1 }
+              eof { puts "Unexpected EOF during installation"; exit 1 }
+            }
             send "poweroff\n"
             expect eof
           INSTALLEOF
 
-      - name: Boot from disk and test system
+      - name: Boot from installed system and verify
         run: |
-          expect << 'TESTEOF'
+          timeout 180 expect -c '
             set timeout 120
             spawn qemu-system-x86_64 -enable-kvm -m 4096 -smp 2 \
               -bios /usr/share/ovmf/OVMF.fd \
               -drive file=/tmp/disk.qcow2,format=qcow2,if=virtio \
-              -nographic -serial mon:stdio -no-reboot
-            # LUKS password prompt from dracut (initramfs asks for passphrase)
+              -nographic -serial mon:stdio -no-reboot -nic user
             expect {
-              -re {[Pp]assphrase} { send "test\r"; exp_continue }
-              -re {[Pp]assword}   { send "test\r"; exp_continue }
-              "login:" { }
-              timeout { puts "Timeout waiting for login"; exit 1 }
+              -re {[Pp]assphrase|[Pp]assword} { send "test\r"; exp_continue }
+              -re {login:.*#?} { }
+              timeout { puts "Timeout waiting for login prompt"; exit 1 }
+              eof { puts "Unexpected EOF during boot"; exit 1 }
             }
+            sleep 3
             send "root\r"
-            expect "# "
+            expect {
+              -re {#\s*$} { }
+              -re {[Pp]assword} { send "\r"; expect -re {#\s*$} }
+              timeout { puts "Timeout waiting for root shell"; exit 1 }
+            }
             send "cat /etc/calcium-release\n"
-            expect "CALCIUM_VERSION"
+            expect {
+              "CALCIUM_VERSION" { }
+              timeout { puts "calcium-release not found"; exit 1 }
+            }
             send "hostname\n"
-            expect "calcium-test"
-            send "dmsetup ls 2>&1 || true\n"
-            expect "# "
-            send "rc-service gdm status 2>&1 || true\n"
-            expect "# "
-            send "rc-service gdm start 2>&1 || true\n"
-            expect "# "
-            send "su - livecd -c 'XDG_SESSION_TYPE=wayland dbus-run-session gnome-session --headless 2>&1' || true\n"
-            expect "# "
-            send "calcium-update check 2>&1 || true\n"
-            expect "# "
-            send "mkdir -p /tmp/mock-update/usr/bin\n"
-            send "echo 'new-binary' > /tmp/mock-update/usr/bin/test-tool\n"
-            send "cd /tmp/mock-update && tar -cJf /tmp/mock-rootfs.tar.xz . && cd /\n"
-            expect "# "
-            send "tar -xJf /tmp/mock-rootfs.tar.xz --exclude=etc --exclude=home --exclude=var --exclude=root -C / 2>&1\n"
-            expect "# "
-            send "[ -f /usr/bin/test-tool ] && echo 'PASS: update extraction works'\n"
-            expect "# "
-            send "rm -f /usr/bin/test-tool /tmp/mock-rootfs.tar.xz\n"
+            expect {
+              "calcium-test" { }
+              timeout { puts "Hostname check failed"; exit 1 }
+            }
+            send "df -h /\n"
+            expect {
+              -re {/dev/mapper/} { }
+              timeout { puts "Root not on LUKS device"; exit 1 }
+            }
+            send "cryptsetup status calcium-root 2>&1 || dmsetup table 2>&1\n"
+            expect {
+              -re {active|calcium-root} { }
+              timeout { puts "cryptsetup status failed"; exit 1 }
+            }
             send "poweroff\n"
             expect eof
-          TESTEOF
+          '
