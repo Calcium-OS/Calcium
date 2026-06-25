@@ -445,10 +445,14 @@ unset _local_bin
 BASHRC
 
 # Remove passwords safely
-passwd -d root || true
-passwd -d livecd || true
+# passwd -d root || true
+# passwd -d livecd || true
+
+echo 'root:root' | chpasswd
+echo 'livecd:livecd' | chpasswd
 mkdir -p /etc/sudoers.d
 echo "livecd ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/liveuser
+
 
 echo ">>> Cleaning up to reduce ISO size..."
 rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
