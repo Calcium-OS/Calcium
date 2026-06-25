@@ -47,9 +47,9 @@ cat > /etc/portage/package.mask/gnome-games <<'EOF'
 # EOF
 
 # Mask gnome-shell-extensions as the newer "Extensions Manager" Flatpak is used (From bottom script)
-cat > /etc/portage/package.mask/gnome-shell-extensions <<'EOF'
-gnome-extra/gnome-shell-extensions
-EOF
+# cat > /etc/portage/package.mask/gnome-shell-extensions <<'EOF'
+# gnome-extra/gnome-shell-extensions
+# EOF
 
 printf '%s\n' \
   'gnome-base/gnome ~amd64' \
