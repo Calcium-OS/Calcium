@@ -20,6 +20,7 @@ printf '%s\n' \
   'gnome-base/gnome-shell ~amd64' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
+  'x11-drivers/nvidia-drivers ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
@@ -30,8 +31,12 @@ printf '%s\n' \
 echo "app-arch/7zip rar" >> /etc/portage/package.use/7zip
 echo "app-arch/7zip unRAR" >> /etc/portage/package.license/7zip
 
+# Configure NVIDIA with Open-Source Kernel Modules and Wayland support
+echo "x11-drivers/nvidia-drivers modules wayland kernel-open" >> /etc/portage/package.use/nvidia
+echo "x11-drivers/nvidia-drivers NVIDIA-r1" >> /etc/portage/package.license/nvidia
+
 id gdm &>/dev/null || useradd -r gdm
-id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
+id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render,video livecd
 
 echo ">>> Running emerge package installations..."
 emerge --quiet --getbinpkg --noreplace \
@@ -41,6 +46,7 @@ emerge --quiet --getbinpkg --noreplace \
   gnome-base/gdm \
   gui-libs/display-manager-init \
   x11-themes/gnome-themes-standard \
+  x11-drivers/nvidia-drivers \
   net-wireless/wpa_supplicant \
   net-misc/dhcpcd \
   sys-boot/efibootmgr \
@@ -175,29 +181,6 @@ system-db:local
 DCONFPROF
 run_optional "dconf engine profile update" dconf update
 
-# GTK config
-# mkdir -p /etc/skel/.config/gtk-3.0
-# cat > /etc/skel/.config/gtk-3.0/settings.ini <<'GTKINI'
-# [Settings]
-# gtk-modules=appmenu-gtk-module
-# GTKINI
-# cat > /etc/skel/.gtkrc-2.0 <<'GTKRC'
-# gtk-modules="appmenu-gtk-module"
-# GTKRC
-
-# Autostart Fildem daemon - To be added later. Requires too much work, used by few applications (Espectually GNOME ones), and this system uses Flatpak that might break it.
-# mkdir -p /etc/xdg/autostart
-# cat > /etc/xdg/autostart/fildem.desktop <<'FILDEMAUTO'
-# [Desktop Entry]
-# Type=Application
-# Exec=fildem
-# Hidden=false
-# NoDisplay=false
-# X-GNOME-Autostart-enabled=true
-# Name=Fildem Global Menu
-# Comment=Run Fildem backend
-# FILDEMAUTO
-
 get_latest_appimage() {
   repo="$1"
 
@@ -295,8 +278,6 @@ else
 fi
 
 
-
-
 echo ">>> Setting up auto-update cron jobs..."
 mkdir -p /etc/cron.daily /etc/cron.weekly
 cat > /etc/cron.daily/flatpak-update <<'CRON'
@@ -370,9 +351,7 @@ run_optional "Gsettings primary-paste" gsettings set org.gnome.desktop.interface
 run_optional "Gsettings volume-step" gsettings set org.gnome.settings-daemon.plugins.media-keys volume-step 2
 run_optional "Gsettings window-switcher filter" gsettings set org.gnome.shell.window-switcher current-workspace-only false
 
-
 run_optional "Gsettings Dock Change" gsettings set org.gnome.shell.extensions.dash-to-dock-fixed true current-workspace-only false
-
 
 echo ">>> Setting default wallpaper..."
 WALLPAPER_URL="https://images.steamusercontent.com/ugc/8546979052418597/251C5932F5CCC0355D748AA1A19608A0625C26E8/"
@@ -488,7 +467,6 @@ install rxrpc /bin/false
 EOF
 
 echo ">>> Cleaning up to reduce ISO size..."
-# rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
 rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
 rm -rf /var/cache /home/livecd/var/cache 2>/dev/null || true
 rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
@@ -496,7 +474,6 @@ find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.ali
 rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
 
 # Remove GNOME games
-
 equery list 'games-board/*'
 equery list 'games-puzzle/*'
 emerge -C $(qlist -IC 'games-board/*') $(qlist -IC 'games-puzzle/*')
