@@ -33,7 +33,7 @@ echo "app-arch/7zip unRAR" >> /etc/portage/package.license/7zip
 
 # Configure NVIDIA with Open-Source Kernel Modules and Wayland support
 echo "x11-drivers/nvidia-drivers modules wayland kernel-open" >> /etc/portage/package.use/nvidia
-echo "x11-drivers/nvidia-drivers NVIDIA-r1" >> /etc/portage/package.license/nvidia
+echo "x11-drivers/nvidia-drivers NVIDIA-2025" >> /etc/portage/package.license/nvidia
 
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render,video livecd

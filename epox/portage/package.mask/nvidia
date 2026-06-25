@@ -1,2 +1,0 @@
-# NVIDIA drivers are masked - we use nouveau in the live ISO
-x11-drivers/nvidia-drivers

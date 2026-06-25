@@ -1,2 +1,4 @@
 # License acceptance for firmware blobs
 sys-kernel/linux-firmware linux-fw-redistributable
+# NVIDIA drivers (pulled in by GNOME desktop profile)
+x11-drivers/nvidia-drivers NVIDIA-2025
