@@ -19,18 +19,18 @@ cat > /etc/portage/package.mask/gnome-games <<'EOF'
 # GNOME Games - removed from LiveCD build
 # gnome-extra games
 # gnome-extra/quadrapassel
-gnome-extra/iagno
-gnome-extra/gnome-nibbles
-gnome-extra/gnome-klotski
-gnome-extra/lightsoff
-gnome-extra/gnome-mahjongg
-gnome-extra/gnome-mines
-gnome-extra/gnome-robots
-gnome-extra/gnome-sudoku
-gnome-extra/swell-foop
-gnome-extra/tali
-gnome-extra/gnome-taquin
-gnome-extra/gnome-tetravex
+# gnome-extra/iagno
+# gnome-extra/gnome-nibbles
+# gnome-extra/gnome-klotski
+# gnome-extra/lightsoff
+# gnome-extra/gnome-mahjongg
+# gnome-extra/gnome-mines
+# gnome-extra/gnome-robots
+# gnome-extra/gnome-sudoku
+# gnome-extra/swell-foop
+# gnome-extra/tali
+# gnome-extra/gnome-taquin
+# gnome-extra/gnome-tetravex
 # gnome-extra/tecla (removed from mask: required by gnome-base/gnome)
 # games-board / games-puzzle (this is what your log is actually installing)
 # games-board/gnome-chess
