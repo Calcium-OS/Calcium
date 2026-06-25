@@ -229,6 +229,28 @@ class UserPage(Adw.NavigationPage):
         self.confirm_entry = Adw.PasswordEntryRow(title="Confirm Password")
         group.add(self.confirm_entry)
 
+        enc_group = Adw.PreferencesGroup(title="Disk Encryption")
+        enc_group.set_margin_top(16)
+        box.append(enc_group)
+
+        self.encrypt_row = Adw.ActionRow(title="Encrypt drive with LUKS")
+        self.encrypt_switch = Gtk.Switch()
+        self.encrypt_switch.set_active(False)
+        self.encrypt_switch.connect("notify::active", self._on_encrypt_toggle)
+        self.encrypt_row.add_suffix(self.encrypt_switch)
+        self.encrypt_row.set_activatable_widget(self.encrypt_switch)
+        enc_group.add(self.encrypt_row)
+
+        self.luks_password_entry = Adw.PasswordEntryRow(title="LUKS Password")
+        self.luks_password_entry.set_visible(False)
+        self.luks_password_entry.connect("changed", lambda *a: validate())
+        enc_group.add(self.luks_password_entry)
+
+        self.luks_confirm_entry = Adw.PasswordEntryRow(title="Confirm LUKS Password")
+        self.luks_confirm_entry.set_visible(False)
+        self.luks_confirm_entry.connect("changed", lambda *a: validate())
+        enc_group.add(self.luks_confirm_entry)
+
         adv_group = Adw.PreferencesGroup(title="Advanced")
         adv_group.set_margin_top(16)
         box.append(adv_group)
@@ -303,6 +325,15 @@ class UserPage(Adw.NavigationPage):
         self.confirm_entry.connect("changed", validate)
         validate()
 
+    def _on_encrypt_toggle(self, switch, param):
+        show = switch.get_active()
+        self.luks_password_entry.set_visible(show)
+        self.luks_confirm_entry.set_visible(show)
+        if not show:
+            self.luks_password_entry.set_text("")
+            self.luks_confirm_entry.set_text("")
+        self.continue_btn.set_sensitive(self._validate())
+
     def get_config(self):
         pw = self.password_entry.get_text()
         tz_iter = self.tz_row.get_selected_item()
@@ -374,7 +405,7 @@ class SummaryPage(Adw.NavigationPage):
         self.disk_group.add(disk_row)
 
         disk_layout = Adw.ActionRow(
-            title="Layout", subtitle="EFI System Partition (512MB) + ext4 root"
+            title="Layout", subtitle="EFI System Partition (512MB) + btrfs root (zstd)"
         )
         self.disk_group.add(disk_layout)
 
