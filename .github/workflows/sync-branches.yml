@@ -1,0 +1,41 @@
+name: Sync branches with main
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Sync gnome-upgrade branch
+        run: |
+          git checkout gnome-upgrade
+          git rebase main || (git rebase --abort && git merge main)
+
+      - name: Sync faster-builds branch
+        run: |
+          git checkout faster-builds
+          git rebase main || (git rebase --abort && git merge main)
+
+      - name: Sync test-suite branch
+        run: |
+          git checkout test-suite
+          git rebase main || (git rebase --abort && git merge main)
+
+      - name: Push synced branches
+        run: |
+          git push origin gnome-upgrade --force-with-lease || echo "gnome-upgrade sync failed"
+          git push origin faster-builds --force-with-lease || echo "faster-builds sync failed"
+          git push origin test-suite --force-with-lease || echo "test-suite sync failed"
+          git checkout main
