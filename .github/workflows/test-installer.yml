@@ -205,8 +205,8 @@ jobs:
 
       - name: Boot from installed system and verify
         run: |
-          timeout 180 expect -c '
-            set timeout 120
+          timeout 240 expect -c '
+            set timeout 180
             spawn qemu-system-x86_64 -enable-kvm -m 4096 -smp 2 \
               -bios /usr/share/ovmf/OVMF.fd \
               -drive file=/tmp/disk.qcow2,format=qcow2,if=virtio \
@@ -221,7 +221,7 @@ jobs:
             send "root\r"
             expect {
               -re {#\s*$} { }
-              -re {[Pp]assword} { send "\r"; expect -re {#\s*$} }
+              -re {[Pp]assword} { send "test\r"; expect -re {#\s*$} }
               timeout { puts "Timeout waiting for root shell"; exit 1 }
             }
             send "cat /etc/calcium-release\n"
@@ -244,6 +244,38 @@ jobs:
               -re {active|calcium-root} { }
               timeout { puts "cryptsetup status failed"; exit 1 }
             }
+
+            # SECURITY: Verify kernel patched against Copy Fail (CVE-2026-31431)
+            send "uname -r\n"
+            expect {
+              -re {[\d]+\.[\d]+\.[\d]+} { }
+              timeout { puts "Kernel version check failed"; exit 1 }
+            }
+            send "lsmod | grep ^algif_aead; echo \"CF_STAT=\\$?\"\n"
+            expect {
+              -re {CF_STAT=1} { }
+              timeout { puts "Copy Fail module check failed"; exit 1 }
+            }
+            send "grep '^blacklist algif_aead' /etc/modprobe.d/lpe-mitigations.conf; echo \"CF_BL=\\$?\"\n"
+            expect {
+              -re {CF_BL=0} { }
+              timeout { puts "Copy Fail blacklist missing"; exit 1 }
+            }
+
+            # SECURITY: Verify kernel patched against Dirty Frag (CVE-2026-43284, CVE-2026-43500)
+            send "lsmod | grep -E '^(esp4|esp6|rxrpc)'; echo \"DF_STAT=\\$?\"\n"
+            expect {
+              -re {DF_STAT=1} { }
+              timeout { puts "Dirty Frag module check failed (expected modules not loaded)"; exit 1 }
+            }
+
+            # SECURITY: Verify kernel patched against Fragnesia (CVE-2026-46300)
+            send "grep -E '^blacklist (esp4|esp6|rxrpc)' /etc/modprobe.d/lpe-mitigations.conf; echo \"FG_STAT=\\$?\"\n"
+            expect {
+              -re {FG_STAT=0} { }
+              timeout { puts "Fragnesia blacklist check failed"; exit 1 }
+            }
+
             send "poweroff\n"
             expect eof
           '

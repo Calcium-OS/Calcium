@@ -66,7 +66,7 @@ class InstallerBackend:
 
     def format_partitions(self, parts):
         self._run(["mkfs.fat", "-F", "32", parts["esp"]])
-        self._run(["mkfs.ext4", "-F", parts["root"]])
+        self._run(["mkfs.btrfs", "-f", "--compress=zstd", parts["root"]])
 
     def mount_partitions(self, parts, mountpoint):
         os.makedirs(mountpoint, exist_ok=True)
@@ -142,7 +142,7 @@ class InstallerBackend:
         fstab = (
             f"# /etc/fstab: static file system information\n"
             f"# <file system> <mount point>   <type>  <options>       <dump>  <pass>\n"
-            f"UUID={root_uuid}  /               ext4    defaults,noatime      0 1\n"
+            f"UUID={root_uuid}  /               btrfs   defaults,noatime,compress=zstd      0 1\n"
             f"UUID={esp_uuid}   /boot           vfat    defaults,noatime      0 2\n"
         )
         with open(os.path.join(mountpoint, "etc", "fstab"), "w") as f:

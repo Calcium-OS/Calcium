@@ -80,7 +80,7 @@ def main():
 
     print("=== Formatting partitions ===")
     run(["mkfs.fat", "-F", "32", esp_dev])
-    run(["mkfs.ext4", "-F", mapper])
+    run(["mkfs.btrfs", "-f", "--compress=zstd", mapper])
 
     print("=== Mounting ===")
     os.makedirs(mnt, exist_ok=True)
@@ -118,7 +118,7 @@ def main():
     fstab_path = os.path.join(mnt, "etc", "fstab")
     with open(fstab_path, "w") as f:
         f.write(f"UUID={esp_uuid}  /boot  vfat  defaults,noatime  0 2\n")
-        f.write(f"/dev/mapper/calcium-root  /  ext4  defaults,noatime  0 1\n")
+        f.write(f"/dev/mapper/calcium-root  /  btrfs  defaults,noatime,compress=zstd  0 1\n")
 
     crypttab_path = os.path.join(mnt, "etc", "crypttab")
     with open(crypttab_path, "w") as f:
@@ -180,7 +180,7 @@ def main():
         kver = os.path.basename(vmlinuz).replace("vmlinuz-", "").replace("vmlinux-", "").replace("kernel-", "")
         if kver:
             run(["chroot", mnt, "dracut", "--force", "--hostonly",
-                 "--add", "crypt lvm",
+                 "--add", "crypt lvm btrfs",
                  f"/boot/initramfs-{kver}.img", kver])
 
     for pattern in ["initramfs-*", "initrd-*", "initramfs-*.img", "initrd-*.img"]:
