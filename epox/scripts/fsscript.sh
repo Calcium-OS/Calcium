@@ -110,8 +110,9 @@ printf '%s\n' \
   com.mattjakeman.ExtensionManager \
   com.protonvpn.www \
   org.torproject.torbrowser-launcher \
-  app.devsuite.Ptyxis \
+  org.wezfurlong.wezterm \
   dev.zed.Zed \
+  io.github.kolunmi.Bazaar \
   com.github.Matoking.protontricks | \
   xargs -P 3 -I{} sh -c 'flatpak install --system -y --noninteractive flathub "$1" || echo "(flatpak install of $1 failed)"' -- {}
 
