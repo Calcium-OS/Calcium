@@ -113,6 +113,8 @@ printf '%s\n' \
   org.torproject.torbrowser-launcher \
   org.wezfurlong.wezterm \
   dev.zed.Zed \
+  com.heroicgameslauncher.hgl \
+  io.github.streetpea.Chiaki4deck \
   io.github.kolunmi.Bazaar \
   com.github.Matoking.protontricks | \
   xargs -P 3 -I{} sh -c 'flatpak install --system -y --noninteractive flathub "$1" || echo "(flatpak install of $1 failed)"' -- {}
@@ -158,7 +160,7 @@ fi
 mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
 [org/gnome/shell]
-enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'liquid-glass@thinkingcoding1231.gmail.com', 'fildem@inled.es', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'drive-menu@gnome-shell-extensions.gcampax.github.com']
+enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'liquid-glass@thinkingcoding1231.gmail.com', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'drive-menu@gnome-shell-extensions.gcampax.github.com']
 favorite-apps=['org.gnome.Epiphany.desktop', 'org.gnome.Nautilus.desktop']
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
@@ -174,88 +176,126 @@ DCONFPROF
 run_optional "dconf engine profile update" dconf update
 
 # GTK config
-mkdir -p /etc/skel/.config/gtk-3.0
-cat > /etc/skel/.config/gtk-3.0/settings.ini <<'GTKINI'
-[Settings]
-gtk-modules=appmenu-gtk-module
-GTKINI
-cat > /etc/skel/.gtkrc-2.0 <<'GTKRC'
-gtk-modules="appmenu-gtk-module"
-GTKRC
+# mkdir -p /etc/skel/.config/gtk-3.0
+# cat > /etc/skel/.config/gtk-3.0/settings.ini <<'GTKINI'
+# [Settings]
+# gtk-modules=appmenu-gtk-module
+# GTKINI
+# cat > /etc/skel/.gtkrc-2.0 <<'GTKRC'
+# gtk-modules="appmenu-gtk-module"
+# GTKRC
 
-# Autostart Fildem daemon
-mkdir -p /etc/xdg/autostart
-cat > /etc/xdg/autostart/fildem.desktop <<'FILDEMAUTO'
-[Desktop Entry]
-Type=Application
-Exec=fildem
-Hidden=false
-NoDisplay=false
-X-GNOME-Autostart-enabled=true
-Name=Fildem Global Menu
-Comment=Run Fildem backend
-FILDEMAUTO
+# Autostart Fildem daemon - To be added later. Requires too much work, used by few applications (Espectually GNOME ones), and this system uses Flatpak that might break it.
+# mkdir -p /etc/xdg/autostart
+# cat > /etc/xdg/autostart/fildem.desktop <<'FILDEMAUTO'
+# [Desktop Entry]
+# Type=Application
+# Exec=fildem
+# Hidden=false
+# NoDisplay=false
+# X-GNOME-Autostart-enabled=true
+# Name=Fildem Global Menu
+# Comment=Run Fildem backend
+# FILDEMAUTO
+
+get_latest_appimage() {
+  repo="$1"
+
+  wget -q -O- "https://api.github.com/repos/$repo/releases/latest" \
+  | grep -oE '"browser_download_url":[^,]+' \
+  | cut -d'"' -f4 \
+  | grep -i "AppImage" \
+  | head -n 1
+}
 
 echo ">>> Installing Sunshine..."
-SUNSHINE_URL=$(wget -q -O- https://api.github.com/repos/LizardByte/Sunshine/releases/latest \
-  | grep "browser_download_url.*AppImage" | head -1 | cut -d'"' -f4 || true)
+
+SUNSHINE_URL=$(get_latest_appimage "LizardByte/Sunshine")
+
 if [ -n "$SUNSHINE_URL" ]; then
   mkdir -p /opt/sunshine
-  wget -q -O /opt/sunshine/sunshine.AppImage "$SUNSHINE_URL" || true
+  wget -q -O /opt/sunshine/sunshine.AppImage "$SUNSHINE_URL"
+  chmod +x /opt/sunshine/sunshine.AppImage
+else
+  echo "(Sunshine URL not found)"
 fi
+
 
 echo ">>> Installing Wine..."
-WINE_URL=$(wget -q -O- https://api.github.com/repos/mmtrt/WINE_AppImage/releases/latest \
-  | grep "WINE_url.*AppImage" | head -1 | cut -d'"' -f4 || true)
+
+WINE_URL=$(get_latest_appimage "mmtrt/WINE_AppImage")
+
 if [ -n "$WINE_URL" ]; then
   mkdir -p /opt/wine
-  wget -q -O /opt/wine/wine.AppImage "$WINE_URL" || true
+  wget -q -O /opt/wine/wine.AppImage "$WINE_URL"
+  chmod +x /opt/wine/wine.AppImage
+else
+  echo "(Wine AppImage URL not found)"
 fi
+
 
 echo ">>> Installing LibreWolf..."
-LIBREWOLF_URL=$(wget -q -O- "https://gitlab.com/api/v4/projects/librewolf-community%2Fbrowser%2Fappimage/releases/permalink/latest" 2>/dev/null | python3 -c "
-import json,sys
-try:
-    d=json.load(sys.stdin)
-    for a in d.get('assets',{}).get('links',[]):
-        if a['name'].endswith('.AppImage'):
-            print(a.get('direct_asset_url',''))
-            break
-except: pass
-" 2>/dev/null || true)
+
+LIBREWOLF_URL=$(wget -q -O- \
+"https://gitlab.com/api/v4/projects/librewolf-community%2Fbrowser%2Fappimage/releases/permalink/latest" \
+| python3 - <<'EOF'
+import sys, json
+
+data = json.load(sys.stdin)
+
+for asset in data.get("assets", {}).get("links", []):
+    name = asset.get("name", "")
+    if name.endswith(".AppImage"):
+        print(asset.get("direct_asset_url", ""))
+        break
+EOF
+)
+
 if [ -n "$LIBREWOLF_URL" ]; then
-    mkdir -p /opt/librewolf
-    if wget -q -O /opt/librewolf/librewolf.AppImage "$LIBREWOLF_URL"; then
-        chmod +x /opt/librewolf/librewolf.AppImage
-        cd /opt/librewolf
-        run_optional "LibreWolf extract" ./librewolf.AppImage --appimage-extract
-        if [ -f /opt/librewolf/squashfs-root/AppRun ]; then
-            ln -sf /opt/librewolf/squashfs-root/AppRun /opt/librewolf/librewolf
-        fi
-        rm -f /opt/librewolf/librewolf.AppImage
-    fi
+  mkdir -p /opt/librewolf
+
+  wget -q -O /opt/librewolf/librewolf.AppImage "$LIBREWOLF_URL"
+  chmod +x /opt/librewolf/librewolf.AppImage
+
+  cd /opt/librewolf
+  run_optional "LibreWolf extract" ./librewolf.AppImage --appimage-extract
+
+  if [ -f /opt/librewolf/squashfs-root/AppRun ]; then
+    ln -sf /opt/librewolf/squashfs-root/AppRun /opt/librewolf/librewolf
+  fi
+
+  rm -f /opt/librewolf/librewolf.AppImage
 else
-    echo "(LibreWolf URL not found)"
+  echo "(LibreWolf URL not found)"
 fi
+
 
 echo ">>> Installing AppImageUpdate..."
-APPIMAGEUPDATE_URL=$(wget -q -O- "https://api.github.com/repos/AppImage/AppImageUpdate/releases/latest" \
-  | grep "browser_download_url.*AppImageUpdate.*x86_64.*AppImage" | head -1 | cut -d'"' -f4 || true)
+
+APPIMAGEUPDATE_URL=$(get_latest_appimage "AppImage/AppImageUpdate")
+
 if [ -n "$APPIMAGEUPDATE_URL" ]; then
-    run_optional "AppImageUpdate install" wget -q -O /usr/local/bin/AppImageUpdate "$APPIMAGEUPDATE_URL"
-    [ -f /usr/local/bin/AppImageUpdate ] && chmod +x /usr/local/bin/AppImageUpdate || echo "(AppImageUpdate setup missed)"
+  wget -q -O /usr/local/bin/AppImageUpdate "$APPIMAGEUPDATE_URL"
+  chmod +x /usr/local/bin/AppImageUpdate
+else
+  echo "(AppImageUpdate URL not found)"
 fi
 
-echo ">>> Installing Waydroid (Android in a container)..."
-WAYDROID_VER="1.6.3"
-if wget -q -O /tmp/waydroid.tar.gz "https://github.com/waydroid/waydroid/archive/refs/tags/${WAYDROID_VER}.tar.gz"; then
-  tar xzf /tmp/waydroid.tar.gz -C /tmp
-  if cd "/tmp/waydroid-${WAYDROID_VER}" 2>/dev/null; then
-    run_optional "Waydroid installation make" make install
-    cd /
-  fi
+
+echo ">>> Installing Waydroid..."
+WAYDROID_URL=$(wget -q -O- \
+  https://api.github.com/repos/pkgforge-dev/Waydroid-AppImage/releases/latest \
+  | grep -oE 'https://[^"]+AppImage' | head -1)
+if [ -n "$WAYDROID_URL" ]; then
+  mkdir -p /opt/waydroid
+  wget -q -O /opt/waydroid/Waydroid.AppImage "$WAYDROID_URL"
+  chmod +x /opt/waydroid/Waydroid.AppImage
+else
+  echo "Failed to find Waydroid AppImage URL"
 fi
-rm -rf /tmp/waydroid*
+
+
+
 
 echo ">>> Setting up auto-update cron jobs..."
 mkdir -p /etc/cron.daily /etc/cron.weekly
