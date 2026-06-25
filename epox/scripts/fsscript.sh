@@ -440,14 +440,14 @@ find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.ali
 rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
 
 # Remove GNOME games
-equery list 'games-board/*'
-equery list 'games-puzzle/*'
+# equery list 'games-board/*'
+# equery list 'games-puzzle/*'
 
 # Remove GNOME games
-echo ">>> Cleaning up GNOME games..."
-GNOME_GAMES=$(qlist -IC 'games-board/*' 'games-puzzle/*' 2>/dev/null)
-if [ -n "$GNOME_GAMES" ]; then
-  emerge --unmerge $GNOME_GAMES
-fi
+# echo ">>> Cleaning up GNOME games..."
+# GNOME_GAMES=$(qlist -IC 'games-board/*' 'games-puzzle/*' 2>/dev/null)
+# if [ -n "$GNOME_GAMES" ]; then
+  # emerge --unmerge $GNOME_GAMES
+# fi
 
 echo ">>> LiveCD configuration complete"
