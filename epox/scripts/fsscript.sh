@@ -452,6 +452,7 @@ chmod 0440 /etc/sudoers.d/liveuser
 
 echo ">>> Applying Copy Fail / Dirty Frag / Fragnesia mitigations..."
 
+mkdir -p /etc/modprobe.d
 cat > /etc/modprobe.d/lpe-mitigations.conf <<'EOF'
 # Copy Fail
 blacklist algif_aead
