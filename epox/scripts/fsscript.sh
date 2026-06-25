@@ -453,4 +453,10 @@ rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
 find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
 rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
 
+# Remove GNOME games
+
+equery list 'games-board/*'
+equery list 'games-puzzle/*'
+emerge -C $(qlist -IC 'games-board/*') $(qlist -IC 'games-puzzle/*')
+
 echo ">>> LiveCD configuration complete"
