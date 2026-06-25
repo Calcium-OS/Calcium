@@ -75,6 +75,7 @@ emerge --quiet --getbinpkg --noreplace \
   app-arch/7zip \
   app-arch/zpaq \
   net-vpn/tailscale \
+  dev-python/pip \
   gnome-extra/gnome-shell-extension-gsconnect
 
 echo ">>> Configuring zram swap..."
@@ -118,10 +119,6 @@ printf '%s\n' \
 
 run_optional "Mixtapes remote-add" flatpak remote-add --system --if-not-exists mixtapes https://m-obeid.github.io/Mixtapes/mixtapes.flatpakrepo
 flatpak install --system -y --noninteractive mixtapes com.pocoguy.Muse || echo "(Muse flatpak install failed)"
-
-echo ">>> Setting up Ptyxis configuration placeholders..."
-OPACITY="${1:-0.85}"
-UUID=$(dconf read /org/gnome/Ptyxis/default-profile-uuid 2>/dev/null | tr -d "'" || true)
 
 echo ">>> Installing lf file manager..."
 LF_URL=$(wget -q -O- "https://api.github.com/repos/gokcehan/lf/releases/latest" \
@@ -333,6 +330,10 @@ run_optional "Gsettings primary-paste" gsettings set org.gnome.desktop.interface
 run_optional "Gsettings volume-step" gsettings set org.gnome.settings-daemon.plugins.media-keys volume-step 2
 run_optional "Gsettings window-switcher filter" gsettings set org.gnome.shell.window-switcher current-workspace-only false
 
+
+run_optional "Gsettings Dock Change" gsettings set org.gnome.shell.extensions.dash-to-dock-fixed true current-workspace-only false
+
+
 echo ">>> Setting default wallpaper..."
 WALLPAPER_URL="https://images.steamusercontent.com/ugc/8546979052418597/251C5932F5CCC0355D748AA1A19608A0625C26E8/"
 mkdir -p /usr/share/backgrounds/gnome
@@ -447,7 +448,7 @@ install rxrpc /bin/false
 EOF
 
 echo ">>> Cleaning up to reduce ISO size..."
-rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
+# rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
 rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
 rm -rf /var/cache /home/livecd/var/cache 2>/dev/null || true
 rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
