@@ -1,4 +1,4 @@
-# GNOME package USE flags for LiveCD
+# GNOME 49/50 package USE flags for LiveCD
 gnome-base/gdm -systemd elogind
 gnome-base/gnome-session -systemd elogind
 gnome-base/gnome-shell -systemd elogind
@@ -10,4 +10,8 @@ x11-base/xorg-server udev
 app-shells/zsh completion
 gnome-base/gnome-extra-apps -games
 sys-boot/grub grub_platforms_efi-64
+# GNOME 49/50 additions
+gnome-base/gnome-desktop -systemd elogind
+gnome-extra/gnome-shell-extensions elogind
+media-libs/pipewire elogind
 
