@@ -58,6 +58,7 @@ emerge --quiet --getbinpkg --noreplace \
   sys-kernel/linux-firmware \
   sys-apps/flatpak \
   dev-util/dialog \
+  sys-fs/btrfs-progs \
   sys-fs/cryptsetup \
   sys-fs/dosfstools \
   net-misc/wget \

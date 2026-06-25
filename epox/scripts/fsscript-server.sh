@@ -41,6 +41,7 @@ emerge --quiet --getbinpkg --noreplace \
   sys-apps/usbutils \
   sys-kernel/dracut \
   sys-kernel/linux-firmware \
+  sys-fs/btrfs-progs \
   sys-fs/cryptsetup \
   sys-fs/dosfstools \
   net-misc/wget \
