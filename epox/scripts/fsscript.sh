@@ -218,24 +218,6 @@ else
   echo "(Wine AppImage URL not found)"
 fi
 
-
-echo ">>> Installing LibreWolf..."
-
-LIBREWOLF_URL=$(wget -q -O- \
-"https://gitlab.com/api/v4/projects/librewolf-community%2Fbrowser%2Fappimage/releases/permalink/latest" \
-| python3 - <<'EOF'
-import sys, json
-
-data = json.load(sys.stdin)
-
-for asset in data.get("assets", {}).get("links", []):
-    name = asset.get("name", "")
-    if name.endswith(".AppImage"):
-        print(asset.get("direct_asset_url", ""))
-        break
-EOF
-)
-
 echo ">>> Installing AppImageUpdate..."
 
 APPIMAGEUPDATE_URL=$(get_latest_appimage "AppImage/AppImageUpdate")
