@@ -136,6 +136,15 @@ jobs:
             https://anongit.gentoo.org/git/repo/sync/gentoo.git \
             "$CATALYST_STOREDIR"/repos/gentoo
 
+          # Inject GNOME 50 overlay ebuilds into portage tree
+          if [ -d /repo/epox/overlays/gnome50 ]; then
+            echo "::group::Injecting GNOME 50 overlay ebuilds"
+            cp -rv /repo/epox/overlays/gnome50/* "$CATALYST_STOREDIR"/repos/gentoo/
+            echo "::endgroup::"
+          else
+            echo "::warning::GNOME 50 overlay not found, skipping injection"
+          fi
+
           SNAPSHOT="$CATALYST_STOREDIR"/snapshots/gentoo-stable.sqfs
 
           tar -C "$CATALYST_STOREDIR"/repos/gentoo \

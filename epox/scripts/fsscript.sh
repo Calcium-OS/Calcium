@@ -57,12 +57,15 @@ printf '%s\n' \
   'gnome-base/gnome-shell ~amd64' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
-  > /etc/portage/package.accept_keywords/gnome
+  'media-libs/glycin ~amd64' \
+  'media-libs/glycin-loaders ~amd64' \
+  >> /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
   '>=gnome-base/gdm-9999 elogind' \
   '>=gnome-base/gnome-settings-daemon-9999 elogind' \
-  > /etc/portage/package.use/gnome
+  '>=gnome-base/gnome-shell-9999 elogind' \
+  >> /etc/portage/package.use/gnome
 
 echo "app-arch/7zip rar" >> /etc/portage/package.use/7zip
 echo "app-arch/7zip unRAR" >> /etc/portage/package.license/7zip

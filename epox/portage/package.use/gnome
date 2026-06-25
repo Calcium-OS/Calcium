@@ -14,4 +14,7 @@ sys-boot/grub grub_platforms_efi-64
 gnome-base/gnome-desktop -systemd elogind
 gnome-extra/gnome-shell-extensions elogind
 media-libs/pipewire elogind
+# GNOME 50: glycin image loader
+media-libs/glycin gtk
+media-libs/glycin-loaders gtk
 

@@ -6,6 +6,16 @@ gnome-extra/gnome-shell-extensions ~amd64
 x11-wm/* ~amd64
 x11-themes/* ~amd64
 
+# GNOME 50 specific packages (injected from overlay)
+>=gnome-base/gnome-shell-50 ~amd64
+>=x11-wm/mutter-50 ~amd64
+>=gnome-base/gnome-session-50 ~amd64
+>=gnome-base/gnome-settings-daemon-50 ~amd64
+>=gnome-base/gnome-control-center-50 ~amd64
+>=gnome-base/nautilus-50 ~amd64
+>=gnome-base/gsettings-desktop-schemas-50 ~amd64
+>=gnome-base/gdm-50 ~amd64
+
 # GNOME shell integration and extensions
 gui-libs/* ~amd64
 gui-apps/* ~amd64
@@ -14,6 +24,14 @@ gui-apps/* ~amd64
 media-libs/gsound ~amd64
 media-libs/graphene ~amd64
 media-plugins/* ~amd64
+
+# GNOME 50 dependency: image loading library
+media-libs/glycin ~amd64
+media-libs/glycin-loaders ~amd64
+
+# GNOME 50 dependency: tracker/localsearch (needed by nautilus)
+app-misc/tinysparql ~amd64
+app-misc/localsearch ~amd64
 
 # Core libraries for GNOME 49/50
 app-accessibility/at-spi2-core ~amd64
