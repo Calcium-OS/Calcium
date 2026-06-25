@@ -123,6 +123,7 @@ printf '%s\n' \
   com.heroicgameslauncher.hgl \
   io.github.streetpea.Chiaki4deck \
   io.github.kolunmi.Bazaar \
+  io.gitlab.librewolf-community \
   com.github.Matoking.protontricks | \
   xargs -P 3 -I{} sh -c 'flatpak install --system -y --noninteractive flathub "$1" || echo "(flatpak install of $1 failed)"' -- {}
 
@@ -234,25 +235,6 @@ for asset in data.get("assets", {}).get("links", []):
         break
 EOF
 )
-
-if [ -n "$LIBREWOLF_URL" ]; then
-  mkdir -p /opt/librewolf
-
-  wget -q -O /opt/librewolf/librewolf.AppImage "$LIBREWOLF_URL"
-  chmod +x /opt/librewolf/librewolf.AppImage
-
-  cd /opt/librewolf
-  run_optional "LibreWolf extract" ./librewolf.AppImage --appimage-extract
-
-  if [ -f /opt/librewolf/squashfs-root/AppRun ]; then
-    ln -sf /opt/librewolf/squashfs-root/AppRun /opt/librewolf/librewolf
-  fi
-
-  rm -f /opt/librewolf/librewolf.AppImage
-else
-  echo "(LibreWolf URL not found)"
-fi
-
 
 echo ">>> Installing AppImageUpdate..."
 
