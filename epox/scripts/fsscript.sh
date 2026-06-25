@@ -442,6 +442,12 @@ rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
 # Remove GNOME games
 equery list 'games-board/*'
 equery list 'games-puzzle/*'
-emerge -C $(qlist -IC 'games-board/*') $(qlist -IC 'games-puzzle/*')
+
+# Remove GNOME games
+echo ">>> Cleaning up GNOME games..."
+GNOME_GAMES=$(qlist -IC 'games-board/*' 'games-puzzle/*' 2>/dev/null)
+if [ -n "$GNOME_GAMES" ]; then
+  emerge --unmerge $GNOME_GAMES
+fi
 
 echo ">>> LiveCD configuration complete"
