@@ -156,7 +156,7 @@ else
   echo ":: [WARNING] Fildem download link failed." >&2
 fi
 
-# System-wide dconf configuration (Updated Whitelist version from bottom script)
+# System-wide dconf configuration
 mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
 [org/gnome/shell]
@@ -175,7 +175,7 @@ system-db:local
 DCONFPROF
 run_optional "dconf engine profile update" dconf update
 
-# GTK config (From bottom script structural layout)
+# GTK config
 mkdir -p /etc/skel/.config/gtk-3.0
 cat > /etc/skel/.config/gtk-3.0/settings.ini <<'GTKINI'
 [Settings]
@@ -352,8 +352,6 @@ for extdir in /usr/share/gnome-shell/extensions/*/schemas/; do
   fi
 done
 
-# REMOVED per bottom script: first-login extension enabler setup block
-
 echo ">>> Configuring LiveCD environment..."
 run_optional "chsh root" chsh -s /bin/zsh root
 run_optional "chsh livecd" chsh -s /bin/zsh livecd
@@ -386,9 +384,28 @@ depend() {
 GDMINIT
 chmod +x /etc/init.d/gdm
 
-# Safer directory execution lookup loop for PAM files
-find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/pam_systemd\.so/pam_elogind.so/g' {} + 2>/dev/null || true
-find /etc/pam.d/ -name '*.d' -prune -o -type f -exec sed -i 's/systemd-logind/elogind/g' {} + 2>/dev/null || true
+# Safe structural replacement targeting specific system auth definitions for elogind
+if [ -f /etc/pam.d/system-auth ]; then
+  sed -i 's/pam_systemd\.so/pam_elogind.so/g' /etc/pam.d/system-auth 2>/dev/null || true
+fi
+
+# Append nullok safely to pam_unix modules to grant passwordless auth capability
+find /etc/pam.d/ -type f -exec sed -i 's/\(pam_unix\.so.*\)/\1 nullok/' {} + 2>/dev/null || true
+
+# Strip password fields completely to ensure authentic blank states
+passwd -d root || true
+passwd -d livecd || true
+
+# Build a clean GDM rule set to bypass the interactive login prompt for the live image user
+mkdir -p /etc/gdm
+cat > /etc/gdm/custom.conf <<'GDMCONF'
+[daemon]
+AutomaticLoginEnable=true
+AutomaticLogin=livecd
+TimedLoginEnable=true
+TimedLogin=livecd
+TimedLoginDelay=0
+GDMCONF
 
 # Add services to runlevels safely
 rc-update add display-manager default 2>/dev/null || true
@@ -407,14 +424,9 @@ _local_bin="${HOME}/.local/bin"
 unset _local_bin
 BASHRC
 
-# Remove passwords safely
-# passwd -d root || true
-# passwd -d livecd || true
-
-echo 'root:root' | chpasswd
-echo 'livecd:livecd' | chpasswd
 mkdir -p /etc/sudoers.d
 echo "livecd ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/liveuser
+chmod 0440 /etc/sudoers.d/liveuser
 
 echo ">>> Applying Copy Fail / Dirty Frag / Fragnesia mitigations..."
 
@@ -436,7 +448,7 @@ EOF
 echo ">>> Cleaning up to reduce ISO size..."
 rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
 rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
-rm -rf /var/cache /home/livecd/var/cache 2>/dev/null || true # Removes binhost
+rm -rf /var/cache /home/livecd/var/cache 2>/dev/null || true
 rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
 find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
 rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
