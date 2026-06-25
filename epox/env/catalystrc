@@ -1,8 +1,14 @@
 #!/bin/bash
 export MAKEOPTS="-j$(nproc)"
 export GENTOO_MIRRORS="https://distfiles.gentoo.org"
+export EMERGE_DEFAULT_OPTS="${EMERGE_DEFAULT_OPTS} --jobs=$(nproc) --load-average=$(nproc)"
 
 # Install tools needed by catalyst's kmerge.sh before kernel build
+emerge --quiet --getbinpkgonly --oneshot --noreplace \
+  app-portage/portage-utils \
+  sys-fs/lvm2 \
+  sys-apps/busybox \
+  2>/dev/null || \
 emerge --quiet --getbinpkg --oneshot --noreplace \
   app-portage/portage-utils \
   sys-fs/lvm2 \

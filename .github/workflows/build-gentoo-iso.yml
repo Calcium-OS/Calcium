@@ -43,11 +43,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Generate weekly cache date
+        id: cache-date
+        run: echo "week=$(date -u +%Y-%U)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache emerge-webrsync snapshot
+        id: cache-webrsync
+        uses: actions/cache@v4
+        with:
+          path: /var/db/repos/gentoo
+          key: webrsync-${{ runner.os }}-${{ steps.cache-date.outputs.week }}
+          restore-keys: |
+            webrsync-${{ runner.os }}-
+
       - name: Initialize Portage tree and install catalyst
         run: |
           mkdir -p /etc/portage/repos.conf
           printf '%s\n' '[gentoo]' 'location = /var/db/repos/gentoo' 'sync-type = webrsync' 'auto-sync = yes' > /etc/portage/repos.conf/gentoo.conf
-          emerge-webrsync
+          if [ ! -d /var/db/repos/gentoo/profiles ]; then
+            emerge-webrsync
+          fi
           emerge --oneshot --getbinpkgonly sys-devel/bc 2>/dev/null || emerge --oneshot --getbinpkg sys-devel/bc
           mkdir -p /etc/portage/package.accept_keywords
           printf '%s\n' 'dev-util/catalyst ~amd64' > /etc/portage/package.accept_keywords/catalyst
@@ -90,9 +105,21 @@ jobs:
           path: |
             /var/cache/binpkgs
             /var/tmp/catalyst/packages
-            /var/tmp/ccache
-          key: catalyst-${{ hashFiles('epox/gentoo-gnome.spec', 'epox/gentoo-server.spec', 'epox/catalyst.conf', 'epox/portage/make.conf', 'epox/portage-server/make.conf') }}
-          restore-keys: catalyst-
+          key: catalyst-binpkgs-${{ matrix.variant.target }}-${{ hashFiles('epox/catalyst.conf', format('{0}/make.conf', matrix.variant.portage_dir)) }}
+          restore-keys: |
+            catalyst-binpkgs-${{ matrix.variant.target }}-
+            catalyst-binpkgs-
+          save-always: true
+
+      - name: Cache ccache (compiler cache)
+        uses: actions/cache@v4
+        with:
+          path: /var/tmp/ccache
+          key: catalyst-ccache-${{ matrix.variant.target }}-${{ github.run_id }}
+          restore-keys: |
+            catalyst-ccache-${{ matrix.variant.target }}-
+            catalyst-ccache-
+          save-always: true
 
       - name: Get latest seed stage3 filename
         id: seed-version
@@ -113,6 +140,7 @@ jobs:
         with:
           path: /var/tmp/catalyst/builds/default/stage3-amd64-openrc-latest.tar.xz
           key: seed-stage3-${{ steps.seed-version.outputs.filename }}
+          save-always: true
 
       - name: Download seed stage3
         if: steps.cache-seed.outputs.cache-hit != 'true'
@@ -133,7 +161,8 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/tmp/catalyst/snapshots/gentoo-stable.sqfs
-          key: portage-snapshot-${{ github.sha }}
+          key: portage-snapshot-${{ github.sha }}-${{ hashFiles('epox/overlays/**') }}
+          save-always: true
 
       - name: Create portage snapshot for catalyst
         if: steps.cache-snapshot.outputs.cache-hit != 'true'
@@ -168,6 +197,9 @@ jobs:
         with:
           path: /var/tmp/catalyst/tmp
           key: ${{ steps.cache-state-key.outputs.key }}
+          restore-keys: |
+            catalyst-state-${{ matrix.variant.target }}-
+          save-always: true
 
       - name: Manage catalyst autoresume for delta builds
         run: |
