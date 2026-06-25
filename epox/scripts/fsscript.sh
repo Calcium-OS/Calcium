@@ -416,6 +416,22 @@ echo 'livecd:livecd' | chpasswd
 mkdir -p /etc/sudoers.d
 echo "livecd ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/liveuser
 
+echo ">>> Applying Copy Fail / Dirty Frag / Fragnesia mitigations..."
+
+cat > /etc/modprobe.d/lpe-mitigations.conf <<'EOF'
+# Copy Fail
+blacklist algif_aead
+install algif_aead /bin/false
+
+# Dirty Frag / Fragnesia
+blacklist esp4
+blacklist esp6
+blacklist rxrpc
+
+install esp4 /bin/false
+install esp6 /bin/false
+install rxrpc /bin/false
+EOF
 
 echo ">>> Cleaning up to reduce ISO size..."
 rm -rf /var/db/repos/gentoo /var/cache/binpkgs /var/tmp/ccache /var/tmp/portage /var/cache/distfiles 2>/dev/null || true
