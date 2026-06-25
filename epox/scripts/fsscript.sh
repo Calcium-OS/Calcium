@@ -31,7 +31,7 @@ gnome-extra/swell-foop
 gnome-extra/tali
 gnome-extra/gnome-taquin
 gnome-extra/gnome-tetravex
-gnome-extra/tecla
+# gnome-extra/tecla (removed from mask: required by gnome-base/gnome)
 # games-board / games-puzzle (this is what your log is actually installing)
 # games-board/gnome-chess
 # games-board/gnome-mahjongg
