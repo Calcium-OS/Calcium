@@ -11,6 +11,7 @@ env:
   CATALYST_STOREDIR: /var/tmp/catalyst
   STAGE3_BASE: https://distfiles.gentoo.org/releases/amd64/autobuilds
   PORTAGE_BINHOST: https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64
+  GENTOO_REPO: https://anongit.gentoo.org/git/repo/sync/gentoo.git
 
 jobs:
   build-iso:
@@ -47,17 +48,17 @@ jobs:
           mkdir -p /etc/portage/repos.conf
           printf '%s\n' '[gentoo]' 'location = /var/db/repos/gentoo' 'sync-type = webrsync' 'auto-sync = yes' > /etc/portage/repos.conf/gentoo.conf
           emerge-webrsync
-          emerge --oneshot --getbinpkg sys-devel/bc
+          emerge --oneshot --getbinpkgonly sys-devel/bc 2>/dev/null || emerge --oneshot --getbinpkg sys-devel/bc
           mkdir -p /etc/portage/package.accept_keywords
           printf '%s\n' 'dev-util/catalyst ~amd64' > /etc/portage/package.accept_keywords/catalyst
           
-          # FIX: Enable xz, zstd, lz4, and lzma compression engines for squashfs-tools
           mkdir -p /etc/portage/package.use
           printf '%s\n' \
             '>=sys-apps/util-linux-2.41.4-r1 python' \
             '>=sys-boot/grub-2.14-r5 grub_platforms_efi-32' \
             'sys-fs/squashfs-tools xz zstd lz4 lzma' > /etc/portage/package.use/catalyst
             
+          emerge --getbinpkgonly catalyst dev-vcs/git sys-fs/squashfs-tools sys-fs/squashfs-tools-ng sys-boot/efibootmgr 2>/dev/null || \
           emerge --getbinpkg catalyst dev-vcs/git sys-fs/squashfs-tools sys-fs/squashfs-tools-ng sys-boot/efibootmgr
 
       - name: Configure catalyst
@@ -127,20 +128,28 @@ jobs:
         run: |
           ln -sf "$GITHUB_WORKSPACE" /repo
 
+      - name: Cache portage snapshot
+        id: cache-snapshot
+        uses: actions/cache@v4
+        with:
+          path: /var/tmp/catalyst/snapshots/gentoo-stable.sqfs
+          key: portage-snapshot-${{ github.sha }}
+
       - name: Create portage snapshot for catalyst
+        if: steps.cache-snapshot.outputs.cache-hit != 'true'
         run: |
           set -euo pipefail
           mkdir -p "$CATALYST_STOREDIR"/snapshots "$CATALYST_STOREDIR"/repos
 
           git clone --depth=1 \
-            https://anongit.gentoo.org/git/repo/sync/gentoo.git \
+            $GENTOO_REPO \
             "$CATALYST_STOREDIR"/repos/gentoo
 
           SNAPSHOT="$CATALYST_STOREDIR"/snapshots/gentoo-stable.sqfs
 
           tar -C "$CATALYST_STOREDIR"/repos/gentoo \
             -cf - . \
-            | tar2sqfs "$SNAPSHOT" -q -f -j1 -c gzip
+            | tar2sqfs "$SNAPSHOT" -q -f -j$(nproc) -c zstd
 
       - name: Generate catalyst state cache key
         id: cache-state-key
