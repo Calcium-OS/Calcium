@@ -8,15 +8,15 @@ depend() {
 }
 
 start() {
+    # Skip if installed system (not live session)
+    /usr/bin/calcium-save is-live || { eend 0 "Installed system, nothing to do"; return 0; }
     ebegin "Loading persistent session"
-    if /usr/bin/calcium-save load; then
-        eend 0
-    else
-        eend 1
-    fi
+    /usr/bin/calcium-save load || true
+    eend 0
 }
 
 stop() {
+    /usr/bin/calcium-save is-live || { return 0; }
     ebegin "Saving session to boot media"
     /usr/bin/calcium-save save || true
     eend 0

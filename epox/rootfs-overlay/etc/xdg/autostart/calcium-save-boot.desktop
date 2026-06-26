@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Calcium OS Persistence
+Comment=Check for saved session on boot
+Exec=/usr/bin/calcium-save gui-boot
+Terminal=false
+X-GNOME-Autostart-enabled=true
+NoDisplay=true

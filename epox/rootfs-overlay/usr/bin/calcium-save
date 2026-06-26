@@ -1,213 +1,437 @@
 #!/bin/bash
-# Calcium OS persistence utility
-# Puppy-Linux-style save/load of session state to boot media
+# Calcium OS persistence utility — Puppy-Linux-style save/load
 set -euo pipefail
 
 SAVE_FILE="calcium-save.img"
-DEFAULT_SIZE="2G"
+STATUS_FILE="/run/calcium-save.status"
 
 usage() {
     cat <<'EOF'
-Usage: calcium-save {load|save|status|help}
+Usage: calcium-save <command> [options]
 
-  load    - Load save file from boot media into overlay
-  save    - Save overlay changes to save file on boot media
-  status  - Show persistence status
-  help    - Show this help
+Commands:
+  load                  Auto-detect and load save file (silent, for service)
+  save                  Auto-detect writable partition and save (silent, for service)
+  save-to <path>        Save overlay to a specific image path
+  load-from <path>      Load overlay from a specific image path
+  status                Show persistence status (CLI)
+  gui                   Open persistence manager dialog
+  gui-boot              Boot-time prompt (after desktop starts)
+  gui-save              GUI: pick partition and create/update save file
+  gui-load              GUI: pick save file to load
+  is-live               Exit 0 if running a live session, 1 if installed
 EOF
+}
+
+# ── Detection helpers ──────────────────────────────────────────────
+
+is_live_session() {
+    mount -t overlay | grep -q " on / "
 }
 
 get_overlay_upper() {
     mount -t overlay | awk -F 'upperdir=' '{print $2}' | awk -F ',' '{print $1}' | head -1
 }
 
-find_boot_device() {
+find_boot_device_base() {
     local dev
     dev=$(findmnt -n -o SOURCE /run/initramfs/live 2>/dev/null || echo "")
-    if [ -z "$dev" ]; then
-        dev=$(findmnt -n -o SOURCE / 2>/dev/null || echo "")
-    fi
-    echo "$dev"
+    [ -z "$dev" ] && dev=$(findmnt -n -o SOURCE / 2>/dev/null || echo "")
+    echo "$dev" | sed 's/[0-9]*$//'
 }
 
-find_writable_partitions() {
-    local base_dev
-    base_dev=$(find_boot_device | sed 's/[0-9]*$//')
-    [ -z "$base_dev" ] && return 1
-
-    local base_name
-    base_name=$(basename "$base_dev")
-
-    for part_dev in /sys/block/"$base_name"/"$base_name"*/dev; do
-        [ -f "$part_dev" ] || continue
-        local part_name
-        part_name=$(basename "$(dirname "$part_dev")")
-        echo "/dev/$part_name"
-    done
+save_status() {
+    local loaded="$1" path="$2"
+    mkdir -p /run
+    printf 'LOADED=%s\nLOAD_PATH=%s\n' "$loaded" "$path" > "$STATUS_FILE"
 }
 
-find_save_file() {
-    for dev in $(find_writable_partitions); do
-        local mnt
-        mnt=$(mktemp -d)
-        if mount -o ro "$dev" "$mnt" 2>/dev/null; then
-            if [ -f "$mnt/$SAVE_FILE" ]; then
-                echo "$mnt/$SAVE_FILE"
-                umount "$mnt" 2>/dev/null
-                rmdir "$mnt" 2>/dev/null
-                return 0
+get_writable_partitions() {
+    for devpath in /sys/block/*/; do
+        local dev
+        dev=$(basename "$devpath")
+        [[ "$dev" == loop* ]] && continue
+        [[ "$dev" == ram* ]] && continue
+        [[ "$dev" == sr* ]] && continue
+        local base="/dev/$dev"
+        # Check whole device if partitionless (e.g. /dev/sda with no partitions)
+        if [ -b "$base" ]; then
+            local partcheck
+            partcheck=$(lsblk -nlo TYPE "$base" 2>/dev/null | head -1)
+            if [ "$partcheck" = "disk" ]; then
+                # Has partitions, check each
+                for part in "$devpath/$dev"*/dev; do
+                    [ -f "$part" ] || continue
+                    local pname
+                    pname=$(basename "$(dirname "$part")")
+                    echo "/dev/$pname"
+                done
+            elif [ "$partcheck" = "part" ]; then
+                echo "$base"
             fi
-            umount "$mnt" 2>/dev/null || true
         fi
-        rmdir "$mnt" 2>/dev/null || true
-    done
+    done 2>/dev/null
+}
+
+is_writable() {
+    local dev="$1"
+    local mnt
+    mnt=$(mktemp -d)
+    if mount "$dev" "$mnt" 2>/dev/null; then
+        if touch "$mnt/.calcium-write-test" 2>/dev/null; then
+            rm -f "$mnt/.calcium-write-test"
+            umount "$mnt" 2>/dev/null || true
+            rmdir "$mnt" 2>/dev/null || true
+            return 0
+        fi
+        umount "$mnt" 2>/dev/null || true
+    fi
+    rmdir "$mnt" 2>/dev/null || true
     return 1
 }
 
-cmd_load() {
-    local overlay_upper
-    overlay_upper=$(get_overlay_upper)
-
-    if [ -z "$overlay_upper" ]; then
-        echo "ERROR: Could not find overlay upper directory"
-        return 1
-    fi
-
-    local found
-    found=$(find_save_file) || {
-        echo "No save file found. Starting fresh session."
-        return 0
-    }
-
-    echo "Found $found"
-    echo "Restoring to overlay upper: $overlay_upper"
-
-    local mnt
-    mnt=$(mktemp -d)
-    mount -o loop,ro "$found" "$mnt"
-
-    rsync -a "$mnt/" "$overlay_upper/"
-
-    umount "$mnt"
-    rmdir "$mnt"
-    echo "Session restored. $found"
-}
-
-cmd_save() {
-    local overlay_upper
-    overlay_upper=$(get_overlay_upper)
-
-    if [ -z "$overlay_upper" ]; then
-        echo "ERROR: Could not find overlay upper directory"
-        return 1
-    fi
-
-    # Find first writable partition
-    local target_dev=""
-    for dev in $(find_writable_partitions); do
+find_save_files() {
+    for dev in $(get_writable_partitions); do
         local mnt
         mnt=$(mktemp -d)
-        if mount "$dev" "$mnt" 2>/dev/null; then
-            if touch "$mnt/.calcium-write-test" 2>/dev/null; then
-                rm -f "$mnt/.calcium-write-test"
-                target_dev="$dev"
+        if mount -o ro "$dev" "$mnt" 2>/dev/null; then
+            local found
+            found=$(find "$mnt" -maxdepth 1 -name "$SAVE_FILE" -type f 2>/dev/null | head -1)
+            if [ -n "$found" ]; then
+                echo "$found@$dev"
                 umount "$mnt" 2>/dev/null || true
                 rmdir "$mnt" 2>/dev/null || true
-                break
+                continue
             fi
             umount "$mnt" 2>/dev/null || true
         fi
         rmdir "$mnt" 2>/dev/null || true
     done
+}
 
-    if [ -z "$target_dev" ]; then
-        echo "ERROR: No writable partition found for saving session"
-        return 1
-    fi
+# ── Core load/save ────────────────────────────────────────────────
 
-    local target_mnt
-    target_mnt=$(mktemp -d)
-    mount "$target_dev" "$target_mnt"
+do_load() {
+    local image="$1"
+    local upper
+    upper=$(get_overlay_upper)
+    [ -z "$upper" ] && { echo "ERROR: no overlay upper dir"; return 1; }
 
-    local save_path="$target_mnt/$SAVE_FILE"
+    echo "Restoring $image -> $upper"
+    local mnt
+    mnt=$(mktemp -d)
+    mount -o loop,ro "$image" "$mnt"
+    rsync -a "$mnt/" "$upper/"
+    umount "$mnt"
+    rmdir "$mnt"
+    save_status 1 "$image"
+    echo "Session restored."
+}
 
-    if [ -f "$save_path" ]; then
-        echo "Updating existing save file on $target_dev"
-        local save_mnt
-        save_mnt=$(mktemp -d)
-        mount -o loop "$save_path" "$save_mnt"
-        rsync -a --delete "$overlay_upper/" "$save_mnt/"
-        umount "$save_mnt"
-        rmdir "$save_mnt"
+do_save() {
+    local image="$1"
+    local upper
+    upper=$(get_overlay_upper)
+    [ -z "$upper" ] && { echo "ERROR: no overlay upper dir"; return 1; }
+
+    if [ -f "$image" ]; then
+        echo "Updating $image"
+        local mnt
+        mnt=$(mktemp -d)
+        mount -o loop "$image" "$mnt"
+        rsync -a --delete "$upper/" "$mnt/"
+        umount "$mnt"
+        rmdir "$mnt"
     else
-        echo "Creating new save file on $target_dev"
-        local free_kb
-        free_kb=$(df -k "$target_mnt" | awk 'NR==2 {print $4}')
-        local used_kb
-        used_kb=$(du -sk "$overlay_upper" | awk '{print $1}')
-        local size_mb=$(( (used_kb * 2 + 200 * 1024) / 1024 ))
-        local max_mb=$(( free_kb * 9 / 10 / 1024 ))
+        local dir
+        dir=$(dirname "$image")
+        local free_kb used_kb size_mb max_mb
+        free_kb=$(df -k "$dir" | awk 'NR==2 {print $4}')
+        used_kb=$(du -sk "$upper" | awk '{print $1}')
+        size_mb=$(( (used_kb * 2 + 200 * 1024) / 1024 ))
+        max_mb=$(( free_kb * 9 / 10 / 1024 ))
         [ "$size_mb" -gt "$max_mb" ] && size_mb=$max_mb
         [ "$size_mb" -lt 64 ] && size_mb=64
 
-        dd if=/dev/zero of="$save_path" bs=1M count=0 seek="$size_mb" 2>/dev/null
-        mkfs.ext4 -F "$save_path" 2>/dev/null
-
-        local save_mnt
-        save_mnt=$(mktemp -d)
-        mount -o loop "$save_path" "$save_mnt"
-        rsync -a "$overlay_upper/" "$save_mnt/"
-        umount "$save_mnt"
-        rmdir "$save_mnt"
+        echo "Creating $image (${size_mb}M)"
+        dd if=/dev/zero of="$image" bs=1M count=0 seek="$size_mb" 2>/dev/null
+        mkfs.ext4 -F "$image" 2>/dev/null
+        local mnt
+        mnt=$(mktemp -d)
+        mount -o loop "$image" "$mnt"
+        rsync -a "$upper/" "$mnt/"
+        umount "$mnt"
+        rmdir "$mnt"
     fi
+    echo "Session saved to $image"
+}
 
-    echo "Session saved to $save_path"
+# ── Command implementations ──────────────────────────────────────
 
-    umount "$target_mnt" 2>/dev/null || true
-    rmdir "$target_mnt" 2>/dev/null || true
+cmd_load() {
+    is_live_session || { echo "Installed system — nothing to do."; return 0; }
+    local found
+    found=$(find_save_files | head -1)
+    [ -z "$found" ] && { echo "No save file found."; save_status 0 ""; return 0; }
+
+    local path="${found%%@*}"
+    do_load "$path"
+}
+
+cmd_save() {
+    is_live_session || { echo "Installed system — nothing to do."; return 0; }
+    local found
+    found=$(find_save_files | head -1)
+    [ -z "$found" ] && { echo "No save file to update. Use gui-save to create one."; return 0; }
+
+    local path="${found%%@*}"
+    do_save "$path"
+}
+
+cmd_save_to() {
+    is_live_session || { echo "Installed system — nothing to do."; return 0; }
+    [ -z "${1:-}" ] && { echo "Usage: calcium-save save-to <path>"; return 1; }
+    do_save "$1"
+}
+
+cmd_load_from() {
+    is_live_session || { echo "Installed system — nothing to do."; return 0; }
+    [ -z "${1:-}" ] && { echo "Usage: calcium-save load-from <path>"; return 1; }
+    [ -f "$1" ] || { echo "File not found: $1"; return 1; }
+    do_load "$1"
 }
 
 cmd_status() {
-    local overlay_upper
-    overlay_upper=$(get_overlay_upper)
-    if [ -n "$overlay_upper" ]; then
+    is_live_session && echo "Mode: Live USB session" || echo "Mode: Installed system"
+
+    local upper
+    upper=$(get_overlay_upper)
+    if [ -n "$upper" ]; then
         local used
-        used=$(du -sh "$overlay_upper" 2>/dev/null | awk '{print $1}')
-        echo "Overlay upper: $overlay_upper ($used used)"
-    else
-        echo "Overlay upper: not found (check mount)"
+        used=$(du -sh "$upper" 2>/dev/null | awk '{print $1}')
+        echo "Overlay upper: $upper ($used used)"
     fi
 
-    if find_save_file >/dev/null 2>&1; then
-        echo "Save file: present (session will persist on next boot)"
-    else
-        echo "Save file: not found (session is temporary)"
-    fi
-
-    echo "Writable partitions:"
-    for dev in $(find_writable_partitions 2>/dev/null); do
-        local mnt
-        mnt=$(mktemp -d)
-        if mount "$dev" "$mnt" 2>/dev/null; then
-            if touch "$mnt/.calcium-write-test" 2>/dev/null; then
-                rm -f "$mnt/.calcium-write-test"
-                local label
-                label=$(lsblk -nlo LABEL "$dev" 2>/dev/null | head -1)
-                local fstype
-                fstype=$(lsblk -nlo FSTYPE "$dev" 2>/dev/null | head -1)
-                local size
-                size=$(lsblk -nlo SIZE "$dev" 2>/dev/null | head -1)
-                echo "  $dev ($label, $fstype, $size) - WRITABLE"
-            fi
-            umount "$mnt" 2>/dev/null || true
+    if [ -f "$STATUS_FILE" ]; then
+        source "$STATUS_FILE"
+        if [ "${LOADED:-0}" = "1" ]; then
+            echo "Save file: $LOAD_PATH (loaded)"
+            local size
+            size=$(du -sh "$LOAD_PATH" 2>/dev/null | awk '{print $1}')
+            echo "Save file size: $size"
+        else
+            echo "No persistence loaded"
         fi
-        rmdir "$mnt" 2>/dev/null || true
-    done
+    else
+        echo "Status: unknown (no status file)"
+    fi
+
+    echo ""
+    echo "Available save files on writable partitions:"
+    local saves
+    saves=$(find_save_files)
+    if [ -z "$saves" ]; then
+        echo "  None"
+    else
+        echo "$saves" | while IFS='@' read -r p d; do
+            local label fstype size
+            label=$(lsblk -nlo LABEL "$d" 2>/dev/null | head -1)
+            fstype=$(lsblk -nlo FSTYPE "$d" 2>/dev/null | head -1)
+            size=$(lsblk -nlo SIZE "$d" 2>/dev/null | head -1)
+            [ -n "$label" ] && label="[$label] " || label=""
+            echo "  $d ${label}($fstype $size): $p"
+        done
+    fi
 }
+
+# ── GUI helpers ──────────────────────────────────────────────────
+
+has_zenity() {
+    command -v zenity &>/dev/null
+}
+
+# Returns: selected_path@device
+gui_pick_partition() {
+    local items=()
+    for dev in $(get_writable_partitions); do
+        is_writable "$dev" || continue
+        local label fstype size
+        label=$(lsblk -nlo LABEL "$dev" 2>/dev/null | head -1)
+        fstype=$(lsblk -nlo FSTYPE "$dev" 2>/dev/null | head -1)
+        size=$(lsblk -nlo SIZE "$dev" 2>/dev/null | head -1)
+        [ -z "$label" ] && label="(no label)"
+        [ -z "$fstype" ] && fstype="?"
+        items+=("$dev" "$label  $fstype  $size")
+    done
+
+    if [ ${#items[@]} -eq 0 ]; then
+        zenity --error --text="No writable partitions found.\n\nPlug in a USB drive with a writable partition and try again."
+        return 1
+    fi
+
+    local choice
+    choice=$(zenity --list --title="Calcium OS — Persistent Storage" \
+        --text="Choose a partition to store session data:" \
+        --column="Device" --column="Details" \
+        "${items[@]}" --width=500 --height=300)
+    [ -z "$choice" ] && return 1
+    echo "$choice"
+}
+
+gui_pick_save_file() {
+    local found
+    found=$(find_save_files)
+    if [ -n "$found" ]; then
+        local items=()
+        while IFS='@' read -r p d; do
+            local label size
+            label=$(lsblk -nlo LABEL "$d" 2>/dev/null | head -1)
+            size=$(lsblk -nlo SIZE "$d" 2>/dev/null | head -1)
+            [ -z "$label" ] && label="(no label)"
+            items+=("$p" "$d  $label  $size")
+        done <<< "$found"
+
+        items+=("_other" "Browse for a different file...")
+
+        local choice
+        choice=$(zenity --list --title="Calcium OS — Load Session" \
+            --text="Select a save file to load:" \
+            --column="Path" --column="Details" \
+            "${items[@]}" --width=600 --height=300)
+        [ -z "$choice" ] && return 1
+        [ "$choice" = "_other" ] && choice=$(zenity --file-selection --title="Select save file")
+        [ -z "$choice" ] && return 1
+        echo "$choice"
+        return 0
+    fi
+
+    local choice
+    choice=$(zenity --file-selection --title="Select a calcium-save.img file" 2>/dev/null || true)
+    [ -z "$choice" ] && return 1
+    echo "$choice"
+}
+
+gui_ask() {
+    local title="$1" question="$2" default="$3"
+    zenity --question --title="$title" --text="$question" --default-cancel="$([ "$default" = "yes" ] && echo false || echo true)" 2>/dev/null
+}
+
+# ── GUI commands ─────────────────────────────────────────────────
+
+cmd_gui_boot() {
+    is_live_session || exit 0
+    has_zenity || { save_status 0 ""; exit 0; }
+
+    # Wait for desktop
+    for i in $(seq 1 30); do
+        pgrep -x gnome-shell >/dev/null 2>&1 && break
+        sleep 1
+    done
+
+    local found
+    found=$(find_save_files | head -1)
+
+    if [ -n "$found" ]; then
+        local path="${found%%@*}"
+        if gui_ask "Calcium OS" "Persistent session save file found.\nLoad previous session?" "yes"; then
+            do_load "$path"
+            zenity --info --text="Session loaded from:\n$path" &
+        else
+            save_status 0 ""
+        fi
+    else
+        if gui_ask "Calcium OS" "No saved session found.\n\nWould you like to set up persistence?\n(Changes will be saved between reboots)" "yes"; then
+            local dev
+            dev=$(gui_pick_partition) || { save_status 0 ""; exit 0; }
+            local mnt
+            mnt=$(mktemp -d)
+            mount "$dev" "$mnt"
+            local img="$mnt/$SAVE_FILE"
+            do_save "$img"
+            zenity --info --text="Persistence save file created:\n$img\n\nYour session will be saved on shutdown." &
+            umount "$mnt" 2>/dev/null || true
+            rmdir "$mnt" 2>/dev/null || true
+        fi
+    fi
+}
+
+cmd_gui_save() {
+    is_live_session || { zenity --error --text="Not a live session." 2>/dev/null || true; return 1; }
+    has_zenity || { echo "zenity not available"; return 1; }
+
+    local dev
+    dev=$(gui_pick_partition) || return 1
+    local mnt
+    mnt=$(mktemp -d)
+    mount "$dev" "$mnt"
+    local img="$mnt/$SAVE_FILE"
+    do_save "$img"
+    zenity --info --text="Session saved to:\n$img" 2>/dev/null || true
+    umount "$mnt" 2>/dev/null || true
+    rmdir "$mnt" 2>/dev/null || true
+}
+
+cmd_gui_load() {
+    is_live_session || { zenity --error --text="Not a live session." 2>/dev/null || true; return 1; }
+    has_zenity || { echo "zenity not available"; return 1; }
+
+    local path
+    path=$(gui_pick_save_file) || return 1
+    do_load "$path"
+    zenity --info --text="Session loaded from:\n$path" 2>/dev/null || true
+}
+
+cmd_gui() {
+    is_live_session || { zenity --error --text="This is an installed system.\nPersistence is only for Live USB sessions." 2>/dev/null || true; return 1; }
+    has_zenity || { echo "zenity not available"; return 1; }
+
+    local choice
+    choice=$(zenity --list --title="Calcium OS — Persistence Manager" \
+        --text="Manage your Live USB session persistence:" \
+        --column="Action" --column="Description" \
+        save "Save current session to save file" \
+        load "Load session from save file" \
+        status "Show persistence status" \
+        --width=500 --height=250 --hide-header)
+    [ -z "$choice" ] && return 0
+    case "$choice" in
+        save) cmd_gui_save ;;
+        load) cmd_gui_load ;;
+        status) zenity --info --text="$(cmd_status 2>&1)" --width=500 --height=300 2>/dev/null || true ;;
+    esac
+}
+
+cmd_gui_shutdown() {
+    is_live_session || exit 0
+    has_zenity || exit 0
+
+    local found
+    found=$(find_save_files | head -1)
+    if [ -z "$found" ]; then
+        if gui_ask "Calcium OS" "Save session before shutdown?" "yes"; then
+            cmd_gui_save
+        fi
+    else
+        local path="${found%%@*}"
+        if gui_ask "Calcium OS" "Update saved session before shutdown?" "yes"; then
+            do_save "$path"
+        fi
+    fi
+}
+
+# ── Main ─────────────────────────────────────────────────────────
 
 case "${1:-help}" in
     load) cmd_load ;;
     save) cmd_save ;;
+    save-to) shift; cmd_save_to "$@" ;;
+    load-from) shift; cmd_load_from "$@" ;;
     status) cmd_status ;;
+    gui) cmd_gui ;;
+    gui-boot) cmd_gui_boot ;;
+    gui-save) cmd_gui_save ;;
+    gui-load) cmd_gui_load ;;
+    gui-shutdown) cmd_gui_shutdown ;;
+    is-live) is_live_session ;;
     *) usage ;;
 esac
