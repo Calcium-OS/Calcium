@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Save Session
+Comment=Save Live USB session for next boot
+Exec=/usr/bin/calcium-save gui-save
+Icon=document-save
+Terminal=false
+Categories=System;
