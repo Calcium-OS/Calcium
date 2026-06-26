@@ -42,6 +42,95 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+
+      - name: Free disk space
+        shell: bash
+        run: |
+          set -euxo pipefail
+      
+          echo "Disk before cleanup:"
+          df -h
+      
+          # Stop Docker to release files
+          sudo systemctl stop docker || true
+      
+          # Android SDK (~10-14GB)
+          sudo rm -rf /usr/local/lib/android
+      
+          # .NET (~2-4GB)
+          sudo rm -rf /usr/share/dotnet
+      
+          # Haskell (~2GB)
+          sudo rm -rf /opt/ghc
+      
+          # CodeQL (~2-5GB)
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+      
+          # Hosted tool cache (can be 8-15GB)
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo rm -rf /opt/hostedtoolcache || true
+      
+          # Java (remove if unused)
+          sudo rm -rf /usr/lib/jvm || true
+      
+          # Swift (~2-3GB)
+          sudo rm -rf /usr/share/swift || true
+      
+          # Browsers
+          sudo apt-get remove -y \
+            google-chrome-stable \
+            microsoft-edge-stable \
+            firefox || true
+      
+          # Azure/GCloud/PowerShell/Mono
+          sudo apt-get remove -y \
+            azure-cli \
+            google-cloud-sdk \
+            powershell \
+            mono-devel || true
+      
+          # Databases
+          sudo apt-get remove -y \
+            mysql* \
+            postgresql* \
+            mongodb* || true
+      
+          # PHP
+          sudo apt-get remove -y 'php*' || true
+      
+          # LLVM/Clang
+          sudo apt-get remove -y 'llvm-*' 'clang-*' || true
+      
+          # Misc large packages
+          sudo apt-get autoremove -y
+          sudo apt-get clean
+      
+          # Docker
+          docker system prune -af --volumes || true
+          sudo rm -rf /var/lib/docker || true
+      
+          # Apt caches
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo rm -rf /var/cache/apt/*
+      
+          # Temporary files
+          sudo rm -rf /tmp/*
+          sudo rm -rf /var/tmp/*
+      
+          # Pip/npm/cargo caches
+          rm -rf ~/.cache/pip || true
+          rm -rf ~/.cache/pypoetry || true
+          rm -rf ~/.npm || true
+          rm -rf ~/.cargo || true
+          rm -rf ~/.rustup || true
+      
+          # Swap (if present)
+          sudo swapoff -a || true
+          sudo rm -f /mnt/swapfile || true
+      
+          echo "Disk after cleanup:"
+          df -h
+
       - name: Initialize Portage tree and install catalyst
         run: |
           mkdir -p /etc/portage/repos.conf
