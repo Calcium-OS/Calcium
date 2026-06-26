@@ -46,6 +46,20 @@ save_status() {
     printf 'LOADED=%s\nLOAD_PATH=%s\n' "$loaded" "$path" > "$STATUS_FILE"
 }
 
+get_boot_device_partitions() {
+    local base_dev
+    base_dev=$(find_boot_device_base)
+    [ -z "$base_dev" ] && return 1
+    local base_name
+    base_name=$(basename "$base_dev")
+    for part_dev in /sys/block/"$base_name"/"$base_name"*/dev; do
+        [ -f "$part_dev" ] || continue
+        local pname
+        pname=$(basename "$(dirname "$part_dev")")
+        echo "/dev/$pname"
+    done 2>/dev/null
+}
+
 get_writable_partitions() {
     for devpath in /sys/block/*/; do
         local dev
@@ -54,12 +68,10 @@ get_writable_partitions() {
         [[ "$dev" == ram* ]] && continue
         [[ "$dev" == sr* ]] && continue
         local base="/dev/$dev"
-        # Check whole device if partitionless (e.g. /dev/sda with no partitions)
         if [ -b "$base" ]; then
             local partcheck
             partcheck=$(lsblk -nlo TYPE "$base" 2>/dev/null | head -1)
             if [ "$partcheck" = "disk" ]; then
-                # Has partitions, check each
                 for part in "$devpath/$dev"*/dev; do
                     [ -f "$part" ] || continue
                     local pname
@@ -91,6 +103,27 @@ is_writable() {
 }
 
 find_save_files() {
+    # Scan boot device partitions (safe for auto-ops)
+    for dev in $(get_boot_device_partitions); do
+        local mnt
+        mnt=$(mktemp -d)
+        if mount -o ro "$dev" "$mnt" 2>/dev/null; then
+            local found
+            found=$(find "$mnt" -maxdepth 1 -name "$SAVE_FILE" -type f 2>/dev/null | head -1)
+            if [ -n "$found" ]; then
+                echo "$found@$dev"
+                umount "$mnt" 2>/dev/null || true
+                rmdir "$mnt" 2>/dev/null || true
+                continue
+            fi
+            umount "$mnt" 2>/dev/null || true
+        fi
+        rmdir "$mnt" 2>/dev/null || true
+    done
+}
+
+find_all_save_files() {
+    # Scan ALL writable partitions (for GUI, user explicitly chooses)
     for dev in $(get_writable_partitions); do
         local mnt
         mnt=$(mktemp -d)
@@ -172,7 +205,7 @@ cmd_load() {
     is_live_session || { echo "Installed system — nothing to do."; return 0; }
     local found
     found=$(find_save_files | head -1)
-    [ -z "$found" ] && { echo "No save file found."; save_status 0 ""; return 0; }
+    [ -z "$found" ] && { echo "No save file found on boot device."; save_status 0 ""; return 0; }
 
     local path="${found%%@*}"
     do_load "$path"
@@ -180,12 +213,33 @@ cmd_load() {
 
 cmd_save() {
     is_live_session || { echo "Installed system — nothing to do."; return 0; }
-    local found
-    found=$(find_save_files | head -1)
-    [ -z "$found" ] && { echo "No save file to update. Use gui-save to create one."; return 0; }
 
-    local path="${found%%@*}"
-    do_save "$path"
+    # Try updating existing save file first
+    local found
+    found=$(find_all_save_files | head -1)
+    if [ -n "$found" ]; then
+        local path="${found%%@*}"
+        do_save "$path"
+        return 0
+    fi
+
+    # No existing save file — auto-create on first writable partition
+    # (Live USB only via is_live_session check, so this is safe)
+    for dev in $(get_writable_partitions); do
+        if is_writable "$dev"; then
+            local mnt
+            mnt=$(mktemp -d)
+            mount "$dev" "$mnt"
+            local img="$mnt/$SAVE_FILE"
+            echo "Auto-creating save file on $dev"
+            do_save "$img"
+            umount "$mnt" 2>/dev/null || true
+            rmdir "$mnt" 2>/dev/null || true
+            return 0
+        fi
+    done
+
+    echo "No writable partition found. Session will not persist."
 }
 
 cmd_save_to() {
