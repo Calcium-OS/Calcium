@@ -26,17 +26,17 @@ jobs:
       - name: Sync gnome-upgrade branch
         run: |
           git checkout gnome-upgrade
-          git rebase main || (git rebase --abort && git merge main)
+          git merge main -X theirs --no-edit
 
       - name: Sync faster-builds branch
         run: |
           git checkout faster-builds
-          git rebase main || (git rebase --abort && git merge main)
+          git merge main -X theirs --no-edit
 
       - name: Sync test-suite branch
         run: |
           git checkout test-suite
-          git rebase main || (git rebase --abort && git merge main)
+          git merge main -X theirs --no-edit
 
       - name: Push synced branches
         run: |
