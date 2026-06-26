@@ -63,9 +63,6 @@ jobs:
           rm -rf /host/usr/lib/jvm || true
           rm -rf /host/usr/share/swift || true
 
-          # If the host runner utilizes docker caches outside your container, drop them
-          rm -rf /host/var/lib/docker || true
-
           # Clean container local temporary allocations
           rm -rf /tmp/*
           rm -rf /var/tmp/*
