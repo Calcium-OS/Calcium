@@ -1,0 +1,23 @@
+#!/sbin/openrc-run
+
+description="Calcium OS Persistence Manager"
+
+depend() {
+    need localmount
+    use bootmisc
+}
+
+start() {
+    ebegin "Loading persistent session"
+    if /usr/bin/calcium-save load; then
+        eend 0
+    else
+        eend 1
+    fi
+}
+
+stop() {
+    ebegin "Saving session to boot media"
+    /usr/bin/calcium-save save || true
+    eend 0
+}

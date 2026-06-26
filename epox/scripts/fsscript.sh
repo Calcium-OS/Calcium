@@ -400,6 +400,7 @@ rc-update add dbus default 2>/dev/null || true
 rc-update add elogind default 2>/dev/null || true
 rc-update add cronie default 2>/dev/null || true
 rc-update add tailscale default 2>/dev/null || true
+rc-update add calcium-save default 2>/dev/null || true
 rc-update add zram-init boot 2>/dev/null || true
 run_optional "Start tailscale container service" rc-service tailscale start
 
