@@ -33,25 +33,22 @@ jobs:
             target: server
             version_stamp: server-openrc
 
-    # We start on the Ubuntu host to perform the deep system cleaning
+    # Run directly on the Ubuntu host to manage host disk space safely
     runs-on: blacksmith-4vcpu-ubuntu-2404
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Free disk space (ON HOST)
+      - name: Free disk space on host
         shell: bash
         run: |
           set -euxo pipefail
-
           echo "=== Disk Before Cleanup ==="
           df -h
 
-          # Stop Docker temporarily to release locks if needed
-          sudo systemctl stop docker || true
-
-          # Purge massive pre-installed packages on the Ubuntu runner
+          # Wiping massive pre-installed toolchains from the host runner
+          # We leave Docker running and untouched
           sudo rm -rf /usr/local/lib/android
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /opt/ghc
@@ -59,115 +56,107 @@ jobs:
           sudo rm -rf /usr/lib/jvm || true
           sudo rm -rf /usr/share/swift || true
 
-          # Clear large package manager caches on host
-          sudo apt-get clean
-          sudo rm -rf /var/lib/apt/lists/*
-
-          # Restart Docker daemon so we can run our Gentoo container
-          sudo systemctl start docker
-
-          # Clean up any leftover Docker items on host
-          sudo docker system prune -af --volumes || true
-
           echo "=== Disk After Cleanup ==="
           df -h
 
-      # To isolate the build environment like before, we execute the Gentoo image explicitly 
-      # and mount our workspace and host tools safely.
-      - name: Run Build in Gentoo Container
-        uses: addnab/docker-run-action@v3
-        with:
-          image: gentoo/stage3:latest
-          options: --privileged --cap-add=ALL -v /dev:/dev -v ${{ github.workspace }}:${{ github.workspace }} -e CATALYST_STOREDIR=${{ env.CATALYST_STOREDIR }} -e STAGE3_BASE=${{ env.STAGE3_BASE }} -e PORTAGE_BINHOST=${{ env.PORTAGE_BINHOST }} -w ${{ github.workspace }}
-          run: |
-            set -euxo pipefail
+      - name: Execute Build inside Gentoo Container
+        shell: bash
+        run: |
+          # Use standard docker run directly to bypass action wrapper bugs
+          docker run --privileged --cap-add=ALL \
+            -v /dev:/dev \
+            -v ${{ github.workspace }}:${{ github.workspace }} \
+            -w ${{ github.workspace }} \
+            -e CATALYST_STOREDIR="${{ env.CATALYST_STOREDIR }}" \
+            -e STAGE3_BASE="${{ env.STAGE3_BASE }}" \
+            -e PORTAGE_BINHOST="${{ env.PORTAGE_BINHOST }}" \
+            gentoo/stage3:latest /bin/bash -c '
+              set -euxo pipefail
 
-            echo "=== Inside Gentoo Container ==="
-            mkdir -p /etc/portage/repos.conf
-            printf '%s\n' '[gentoo]' 'location = /var/db/repos/gentoo' 'sync-type = webrsync' 'auto-sync = yes' > /etc/portage/repos.conf/gentoo.conf
-            
-            emerge-webrsync
-            emerge --oneshot --getbinpkg sys-devel/bc
-            mkdir -p /etc/portage/package.accept_keywords
-            printf '%s\n' 'dev-util/catalyst ~amd64' > /etc/portage/package.accept_keywords/catalyst
-            
-            # Enable xz, zstd, lz4, and lzma compression engines for squashfs-tools
-            mkdir -p /etc/portage/package.use
-            printf '%s\n' \
-              '>=sys-apps/util-linux-2.41.4-r1 python' \
-              '>=sys-boot/grub-2.14-r5 grub_platforms_efi-32' \
-              'sys-fs/squashfs-tools xz zstd lz4 lzma' > /etc/portage/package.use/catalyst
+              echo "=== Inside Gentoo Container ==="
+              mkdir -p /etc/portage/repos.conf
+              printf "%s\n" "[gentoo]" "location = /var/db/repos/gentoo" "sync-type = webrsync" "auto-sync = yes" > /etc/portage/repos.conf/gentoo.conf
               
-            emerge --getbinpkg catalyst dev-vcs/git sys-fs/squashfs-tools sys-fs/squashfs-tools-ng sys-boot/efibootmgr
+              emerge-webrsync
+              emerge --oneshot --getbinpkg sys-devel/bc
+              mkdir -p /etc/portage/package.accept_keywords
+              printf "%s\n" "dev-util/catalyst ~amd64" > /etc/portage/package.accept_keywords/catalyst
+              
+              # Enable compression engines for squashfs-tools
+              mkdir -p /etc/portage/package.use
+              printf "%s\n" \
+                ">=sys-apps/util-linux-2.41.4-r1 python" \
+                ">=sys-boot/grub-2.14-r5 grub_platforms_efi-32" \
+                "sys-fs/squashfs-tools xz zstd lz4 lzma" > /etc/portage/package.use/catalyst
+                
+              emerge --getbinpkg catalyst dev-vcs/git sys-fs/squashfs-tools sys-fs/squashfs-tools-ng sys-boot/efibootmgr
 
-            # Configure catalyst
-            mkdir -p "$CATALYST_STOREDIR"
-            cp -v epox/catalyst.conf /etc/catalyst/catalyst.conf
-            mkdir -p /etc/catalyst
-            mkdir -p /var/tmp/ccache /var/tmp/catalyst/packages /var/cache/binpkgs
-            cp -rv ${{ matrix.variant.portage_dir }} ${{ matrix.variant.portage_confdir }}
-            
-            if [ -f "${{ matrix.variant.portage_confdir }}/package.license" ]; then
-              mv "${{ matrix.variant.portage_confdir }}/package.license" /tmp/pkg_license
-              mkdir -p "${{ matrix.variant.portage_confdir }}/package.license"
-              mv /tmp/pkg_license "${{ matrix.variant.portage_confdir }}/package.license/zz-autogenerated"
-            fi
+              # Configure catalyst
+              mkdir -p "$CATALYST_STOREDIR"
+              cp -v epox/catalyst.conf /etc/catalyst/catalyst.conf
+              mkdir -p /etc/catalyst
+              mkdir -p /var/tmp/ccache /var/tmp/catalyst/packages /var/cache/binpkgs
+              cp -rv ${{ matrix.variant.portage_dir }} ${{ matrix.variant.portage_confdir }}
+              
+              if [ -f "${{ matrix.variant.portage_confdir }}/package.license" ]; then
+                mv "${{ matrix.variant.portage_confdir }}/package.license" /tmp/pkg_license
+                mkdir -p "${{ matrix.variant.portage_confdir }}/package.license"
+                mv /tmp/pkg_license "${{ matrix.variant.portage_confdir }}/package.license/zz-autogenerated"
+              fi
 
-            cp -v epox/env/catalystrc /etc/catalyst/env.sh
+              cp -v epox/env/catalystrc /etc/catalyst/env.sh
 
-            # Set Gentoo mirrors
-            MIRRORS='GENTOO_MIRRORS="https://distfiles.gentoo.org https://mirror.rackspace.com/gentoo/ https://mirrors.rit.edu/gentoo/"'
-            echo "export $MIRRORS" >> /etc/catalyst/env.sh
-            echo "$MIRRORS" >> /etc/portage/make.conf
+              # Set Gentoo mirrors
+              MIRRORS='\''GENTOO_MIRRORS="https://distfiles.gentoo.org https://mirror.rackspace.com/gentoo/ https://mirrors.rit.edu/gentoo/"'\''
+              echo "export $MIRRORS" >> /etc/catalyst/env.sh
+              echo "$MIRRORS" >> /etc/portage/make.conf
 
-            # Fetch seed stage3 filename
-            URL="$STAGE3_BASE/latest-stage3-amd64-openrc.txt"
-            echo "Fetching: $URL"
-            LATEST=$(wget -q -O- "$URL" | awk '{print $1}' | grep -E 'stage3-amd64-openrc.*\.tar\.xz$' | tail -n1)
-            echo "Resolved stage3: $LATEST"
+              # Fetch seed stage3 filename
+              URL="$STAGE3_BASE/latest-stage3-amd64-openrc.txt"
+              LATEST=$(wget -q -O- "$URL" | awk "{print \$1}" | grep -E "stage3-amd64-openrc.*\.tar\.xz$" | tail -n1)
+              echo "Resolved stage3: $LATEST"
 
-            # Download seed stage3 directly if not found
-            mkdir -p /var/tmp/catalyst/builds/default
-            if [ ! -f "/var/tmp/catalyst/builds/default/stage3-amd64-openrc-latest.tar.xz" ]; then
+              # Download seed stage3 directly
+              mkdir -p /var/tmp/catalyst/builds/default
               wget -q "$STAGE3_BASE/$LATEST" -O /var/tmp/catalyst/builds/default/stage3-amd64-openrc-latest.tar.xz
-            fi
 
-            # Set up repository symlink
-            ln -sf "${{ github.workspace }}" /repo
+              # Set up repository symlink
+              ln -sf "${{ github.workspace }}" /repo
 
-            # Create snapshot
-            mkdir -p "$CATALYST_STOREDIR"/snapshots "$CATALYST_STOREDIR"/repos
-            git clone --depth=1 https://anongit.gentoo.org/git/repo/sync/gentoo.git "$CATALYST_STOREDIR"/repos/gentoo
-            SNAPSHOT="$CATALYST_STOREDIR"/snapshots/gentoo-stable.sqfs
-            tar -C "$CATALYST_STOREDIR"/repos/gentoo -cf - . | tar2sqfs "$SNAPSHOT" -q -f -j1 -c gzip
+              # Create snapshot
+              mkdir -p "$CATALYST_STOREDIR"/snapshots "$CATALYST_STOREDIR"/repos
+              git clone --depth=1 https://anongit.gentoo.org/git/repo/sync/gentoo.git "$CATALYST_STOREDIR"/repos/gentoo
+              SNAPSHOT="$CATALYST_STOREDIR"/snapshots/gentoo-stable.sqfs
+              tar -C "$CATALYST_STOREDIR"/repos/gentoo -cf - . | tar2sqfs "$SNAPSHOT" -q -f -j1 -c gzip
 
-            # Build livecd-stage2 ISO via catalyst
-            export CATALYST_STOREDIR
-            catalyst -f /repo/${{ matrix.variant.spec_file }}
+              # Build livecd-stage2 ISO via catalyst
+              export CATALYST_STOREDIR
+              catalyst -f /repo/${{ matrix.variant.spec_file }}
 
-            # Create rootfs tarball from ISO
-            ISO="/${{ matrix.variant.iso_name }}.iso"
-            emerge --getbinpkg dev-libs/libisoburn sys-fs/squashfs-tools
-            
-            mkdir -p /mnt/iso
-            xorriso -osirrox on -indev "$ISO" -extract / /mnt/iso
-            SQUASHFS_PATH=$(find -L /mnt/iso -type f -name "*.squashfs" | head -n1)
-            
-            mkdir -p /tmp/rootfs
-            unsquashfs -d /tmp/rootfs "$SQUASHFS_PATH"
-            
-            tar \
-              --exclude=home/livecd \
-              --exclude=root/.cache \
-              --exclude=var/cache \
-              --exclude=var/tmp \
-              --exclude=var/db/repos \
-              --exclude=var/log \
-              -cJf "${{ github.workspace }}/calcium-rootfs-${{ matrix.variant.target }}.tar.xz" \
-              -C /tmp/rootfs .
-            
-            # Move ISO out to workspace directory so the host can find it for artifact uploads
-            mv "$ISO" "${{ github.workspace }}/"
+              # Create rootfs tarball from ISO
+              ISO="/${{ matrix.variant.iso_name }}.iso"
+              emerge --getbinpkg dev-libs/libisoburn sys-fs/squashfs-tools
+              
+              mkdir -p /mnt/iso
+              xorriso -osirrox on -indev "$ISO" -extract / /mnt/iso
+              SQUASHFS_PATH=$(find -L /mnt/iso -type f -name "*.squashfs" | head -n1)
+              
+              mkdir -p /tmp/rootfs
+              unsquashfs -d /tmp/rootfs "$SQUASHFS_PATH"
+              
+              tar \
+                --exclude=home/livecd \
+                --exclude=root/.cache \
+                --exclude=var/cache \
+                --exclude=var/tmp \
+                --exclude=var/db/repos \
+                --exclude=var/log \
+                -cJf "${{ github.workspace }}/calcium-rootfs-${{ matrix.variant.target }}.tar.xz" \
+                -C /tmp/rootfs .
+              
+              # Move final ISO back out to the workspace mount for uploading
+              mv "$ISO" "${{ github.workspace }}/"
+            '
 
       - name: Upload ISO artifact
         uses: actions/upload-artifact@v4
