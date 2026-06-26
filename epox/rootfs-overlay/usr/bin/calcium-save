@@ -1,0 +1,213 @@
+#!/bin/bash
+# Calcium OS persistence utility
+# Puppy-Linux-style save/load of session state to boot media
+set -euo pipefail
+
+SAVE_FILE="calcium-save.img"
+DEFAULT_SIZE="2G"
+
+usage() {
+    cat <<'EOF'
+Usage: calcium-save {load|save|status|help}
+
+  load    - Load save file from boot media into overlay
+  save    - Save overlay changes to save file on boot media
+  status  - Show persistence status
+  help    - Show this help
+EOF
+}
+
+get_overlay_upper() {
+    mount -t overlay | awk -F 'upperdir=' '{print $2}' | awk -F ',' '{print $1}' | head -1
+}
+
+find_boot_device() {
+    local dev
+    dev=$(findmnt -n -o SOURCE /run/initramfs/live 2>/dev/null || echo "")
+    if [ -z "$dev" ]; then
+        dev=$(findmnt -n -o SOURCE / 2>/dev/null || echo "")
+    fi
+    echo "$dev"
+}
+
+find_writable_partitions() {
+    local base_dev
+    base_dev=$(find_boot_device | sed 's/[0-9]*$//')
+    [ -z "$base_dev" ] && return 1
+
+    local base_name
+    base_name=$(basename "$base_dev")
+
+    for part_dev in /sys/block/"$base_name"/"$base_name"*/dev; do
+        [ -f "$part_dev" ] || continue
+        local part_name
+        part_name=$(basename "$(dirname "$part_dev")")
+        echo "/dev/$part_name"
+    done
+}
+
+find_save_file() {
+    for dev in $(find_writable_partitions); do
+        local mnt
+        mnt=$(mktemp -d)
+        if mount -o ro "$dev" "$mnt" 2>/dev/null; then
+            if [ -f "$mnt/$SAVE_FILE" ]; then
+                echo "$mnt/$SAVE_FILE"
+                umount "$mnt" 2>/dev/null
+                rmdir "$mnt" 2>/dev/null
+                return 0
+            fi
+            umount "$mnt" 2>/dev/null || true
+        fi
+        rmdir "$mnt" 2>/dev/null || true
+    done
+    return 1
+}
+
+cmd_load() {
+    local overlay_upper
+    overlay_upper=$(get_overlay_upper)
+
+    if [ -z "$overlay_upper" ]; then
+        echo "ERROR: Could not find overlay upper directory"
+        return 1
+    fi
+
+    local found
+    found=$(find_save_file) || {
+        echo "No save file found. Starting fresh session."
+        return 0
+    }
+
+    echo "Found $found"
+    echo "Restoring to overlay upper: $overlay_upper"
+
+    local mnt
+    mnt=$(mktemp -d)
+    mount -o loop,ro "$found" "$mnt"
+
+    rsync -a "$mnt/" "$overlay_upper/"
+
+    umount "$mnt"
+    rmdir "$mnt"
+    echo "Session restored. $found"
+}
+
+cmd_save() {
+    local overlay_upper
+    overlay_upper=$(get_overlay_upper)
+
+    if [ -z "$overlay_upper" ]; then
+        echo "ERROR: Could not find overlay upper directory"
+        return 1
+    fi
+
+    # Find first writable partition
+    local target_dev=""
+    for dev in $(find_writable_partitions); do
+        local mnt
+        mnt=$(mktemp -d)
+        if mount "$dev" "$mnt" 2>/dev/null; then
+            if touch "$mnt/.calcium-write-test" 2>/dev/null; then
+                rm -f "$mnt/.calcium-write-test"
+                target_dev="$dev"
+                umount "$mnt" 2>/dev/null || true
+                rmdir "$mnt" 2>/dev/null || true
+                break
+            fi
+            umount "$mnt" 2>/dev/null || true
+        fi
+        rmdir "$mnt" 2>/dev/null || true
+    done
+
+    if [ -z "$target_dev" ]; then
+        echo "ERROR: No writable partition found for saving session"
+        return 1
+    fi
+
+    local target_mnt
+    target_mnt=$(mktemp -d)
+    mount "$target_dev" "$target_mnt"
+
+    local save_path="$target_mnt/$SAVE_FILE"
+
+    if [ -f "$save_path" ]; then
+        echo "Updating existing save file on $target_dev"
+        local save_mnt
+        save_mnt=$(mktemp -d)
+        mount -o loop "$save_path" "$save_mnt"
+        rsync -a --delete "$overlay_upper/" "$save_mnt/"
+        umount "$save_mnt"
+        rmdir "$save_mnt"
+    else
+        echo "Creating new save file on $target_dev"
+        local free_kb
+        free_kb=$(df -k "$target_mnt" | awk 'NR==2 {print $4}')
+        local used_kb
+        used_kb=$(du -sk "$overlay_upper" | awk '{print $1}')
+        local size_mb=$(( (used_kb * 2 + 200 * 1024) / 1024 ))
+        local max_mb=$(( free_kb * 9 / 10 / 1024 ))
+        [ "$size_mb" -gt "$max_mb" ] && size_mb=$max_mb
+        [ "$size_mb" -lt 64 ] && size_mb=64
+
+        dd if=/dev/zero of="$save_path" bs=1M count=0 seek="$size_mb" 2>/dev/null
+        mkfs.ext4 -F "$save_path" 2>/dev/null
+
+        local save_mnt
+        save_mnt=$(mktemp -d)
+        mount -o loop "$save_path" "$save_mnt"
+        rsync -a "$overlay_upper/" "$save_mnt/"
+        umount "$save_mnt"
+        rmdir "$save_mnt"
+    fi
+
+    echo "Session saved to $save_path"
+
+    umount "$target_mnt" 2>/dev/null || true
+    rmdir "$target_mnt" 2>/dev/null || true
+}
+
+cmd_status() {
+    local overlay_upper
+    overlay_upper=$(get_overlay_upper)
+    if [ -n "$overlay_upper" ]; then
+        local used
+        used=$(du -sh "$overlay_upper" 2>/dev/null | awk '{print $1}')
+        echo "Overlay upper: $overlay_upper ($used used)"
+    else
+        echo "Overlay upper: not found (check mount)"
+    fi
+
+    if find_save_file >/dev/null 2>&1; then
+        echo "Save file: present (session will persist on next boot)"
+    else
+        echo "Save file: not found (session is temporary)"
+    fi
+
+    echo "Writable partitions:"
+    for dev in $(find_writable_partitions 2>/dev/null); do
+        local mnt
+        mnt=$(mktemp -d)
+        if mount "$dev" "$mnt" 2>/dev/null; then
+            if touch "$mnt/.calcium-write-test" 2>/dev/null; then
+                rm -f "$mnt/.calcium-write-test"
+                local label
+                label=$(lsblk -nlo LABEL "$dev" 2>/dev/null | head -1)
+                local fstype
+                fstype=$(lsblk -nlo FSTYPE "$dev" 2>/dev/null | head -1)
+                local size
+                size=$(lsblk -nlo SIZE "$dev" 2>/dev/null | head -1)
+                echo "  $dev ($label, $fstype, $size) - WRITABLE"
+            fi
+            umount "$mnt" 2>/dev/null || true
+        fi
+        rmdir "$mnt" 2>/dev/null || true
+    done
+}
+
+case "${1:-help}" in
+    load) cmd_load ;;
+    save) cmd_save ;;
+    status) cmd_status ;;
+    *) usage ;;
+esac
