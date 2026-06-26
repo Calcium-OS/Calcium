@@ -18,6 +18,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Git identity
+        run: |
+          git config user.email "ci@calcium-os.org"
+          git config user.name "Calcium CI"
+
       - name: Sync gnome-upgrade branch
         run: |
           git checkout gnome-upgrade
