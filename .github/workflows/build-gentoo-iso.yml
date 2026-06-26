@@ -36,29 +36,41 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     container:
       image: gentoo/stage3:latest
-      options: --privileged --cap-add=ALL -v /dev:/dev
+      options: --privileged --cap-add=ALL -v /dev:/dev -v /:/host
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Free disk space
+      - name: Free disk space & Inspect System
         shell: bash
         run: |
           set -euxo pipefail
-       
-          echo "Disk before cleanup:"
+
+          echo "=== Disk Before Cleanup ==="
           df -h
-       
-          # Remove hosted tool caches (these are mounted from the host into the container)
-          rm -rf "${AGENT_TOOLSDIRECTORY:-}" || true
-          rm -rf /opt/hostedtoolcache/* || true
-       
-          # Clean up temporary container directory spaces
+
+          echo "=== Top 15 Largest Directories/Files on Host ==="
+          # Since the host root is mounted to /host, we can inspect what's consuming space
+          find /host/usr /host/opt /host/var -maxdepth 3 -exec du -sh {} + 2>/dev/null | sort -rh | head -n 15 || true
+
+          echo "=== Cleaning Up Host Space ==="
+          # Safely purge large host directories through the /host mount point
+          rm -rf /host/usr/local/lib/android || true
+          rm -rf /host/usr/share/dotnet || true
+          rm -rf /host/opt/ghc || true
+          rm -rf /host/opt/hostedtoolcache || true
+          rm -rf /host/usr/lib/jvm || true
+          rm -rf /host/usr/share/swift || true
+
+          # If the host runner utilizes docker caches outside your container, drop them
+          rm -rf /host/var/lib/docker || true
+
+          # Clean container local temporary allocations
           rm -rf /tmp/*
           rm -rf /var/tmp/*
-       
-          echo "Disk after cleanup:"
+
+          echo "=== Disk After Cleanup ==="
           df -h
 
       - name: Initialize Portage tree and install catalyst
@@ -69,14 +81,14 @@ jobs:
           emerge --oneshot --getbinpkg sys-devel/bc
           mkdir -p /etc/portage/package.accept_keywords
           printf '%s\n' 'dev-util/catalyst ~amd64' > /etc/portage/package.accept_keywords/catalyst
-           
+          
           # FIX: Enable xz, zstd, lz4, and lzma compression engines for squashfs-tools
           mkdir -p /etc/portage/package.use
           printf '%s\n' \
             '>=sys-apps/util-linux-2.41.4-r1 python' \
             '>=sys-boot/grub-2.14-r5 grub_platforms_efi-32' \
             'sys-fs/squashfs-tools xz zstd lz4 lzma' > /etc/portage/package.use/catalyst
-             
+            
           emerge --getbinpkg catalyst dev-vcs/git sys-fs/squashfs-tools sys-fs/squashfs-tools-ng sys-boot/efibootmgr
 
       - name: Configure catalyst
@@ -86,7 +98,7 @@ jobs:
           mkdir -p /etc/catalyst
           mkdir -p /var/tmp/ccache /var/tmp/catalyst/packages /var/cache/binpkgs
           cp -rv ${{ matrix.variant.portage_dir }} ${{ matrix.variant.portage_confdir }}
-           
+          
           # Convert package.license file to a directory to satisfy catalyst/fsscript expectations
           if [ -f "${{ matrix.variant.portage_confdir }}/package.license" ]; then
             mv "${{ matrix.variant.portage_confdir }}/package.license" /tmp/pkg_license
@@ -211,11 +223,11 @@ jobs:
         run: |
           set -euo pipefail
           ISO="/${{ matrix.variant.iso_name }}.iso"
-           
+          
           echo "::group::Installing userspace ISO tools (xorriso)"
           emerge --getbinpkg dev-libs/libisoburn sys-fs/squashfs-tools
           echo "::endgroup::"
-           
+          
           echo "::group::Extracting ISO to userspace"
           if [ ! -f "$ISO" ]; then
             echo "::error::ISO file not found at $ISO"
@@ -225,10 +237,10 @@ jobs:
           mkdir -p /mnt/iso
           echo "Extracting $ISO to /mnt/iso using xorriso..."
           xorriso -osirrox on -indev "$ISO" -extract / /mnt/iso || { echo "::error::Failed to extract ISO"; exit 1; }
-           
+          
           echo "Searching for squashfs files..."
           SQUASHFS_PATH=$(find -L /mnt/iso -type f -name "*.squashfs" | head -n1)
-           
+          
           if [ -z "$SQUASHFS_PATH" ]; then
             echo "::error::Could not find a valid .squashfs file inside the ISO!"
             echo "Dumping ISO contents for debugging:"
@@ -237,7 +249,7 @@ jobs:
           fi
           echo "Found SQUASHFS at: $SQUASHFS_PATH"
           echo "::endgroup::"
-           
+          
           echo "::group::Unpacking SquashFS"
           mkdir -p /tmp/rootfs
           if ! unsquashfs -d /tmp/rootfs "$SQUASHFS_PATH"; then
@@ -246,7 +258,7 @@ jobs:
           fi
           echo "Extraction successful."
           echo "::endgroup::"
-           
+          
           echo "::group::Cleaning up & Creating Tarball"
           echo "Creating final rootfs tarball..."
           tar \
@@ -258,7 +270,7 @@ jobs:
             --exclude=var/log \
             -cJf /calcium-rootfs-${{ matrix.variant.target }}.tar.xz \
             -C /tmp/rootfs . || { echo "::error::Tarball creation failed"; exit 1; }
-           
+          
           echo "Tarball created successfully."
           rm -rf /mnt/iso
           echo "::endgroup::"
