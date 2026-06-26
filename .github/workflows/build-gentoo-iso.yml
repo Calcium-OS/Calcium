@@ -36,11 +36,42 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     container:
       image: gentoo/stage3:latest
-      options: --privileged --cap-add=ALL -v /dev:/dev
+      options: --privileged --cap-add=ALL -v /dev:/dev -v /:/host
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Free disk space & Inspect System
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          echo "=== Disk Before Cleanup ==="
+          df -h
+
+          echo "=== Top 15 Largest Directories/Files on Host ==="
+          # Since the host root is mounted to /host, we can inspect what's consuming space
+          find /host/usr /host/opt /host/var -maxdepth 3 -exec du -sh {} + 2>/dev/null | sort -rh | head -n 15 || true
+
+          echo "=== Cleaning Up Host Space ==="
+          # Safely purge large host directories through the /host mount point
+          rm -rf /host/usr/local/lib/android || true
+          rm -rf /host/usr/share/dotnet || true
+          rm -rf /host/opt/ghc || true
+          rm -rf /host/opt/hostedtoolcache || true
+          rm -rf /host/usr/lib/jvm || true
+          rm -rf /host/usr/share/swift || true
+
+          # If the host runner utilizes docker caches outside your container, drop them
+          rm -rf /host/var/lib/docker || true
+
+          # Clean container local temporary allocations
+          rm -rf /tmp/*
+          rm -rf /var/tmp/*
+
+          echo "=== Disk After Cleanup ==="
+          df -h
 
       - name: Initialize Portage tree and install catalyst
         run: |

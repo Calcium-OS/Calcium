@@ -218,24 +218,6 @@ else
   echo "(Wine AppImage URL not found)"
 fi
 
-
-echo ">>> Installing LibreWolf..."
-
-LIBREWOLF_URL=$(wget -q -O- \
-"https://gitlab.com/api/v4/projects/librewolf-community%2Fbrowser%2Fappimage/releases/permalink/latest" \
-| python3 - <<'EOF'
-import sys, json
-
-data = json.load(sys.stdin)
-
-for asset in data.get("assets", {}).get("links", []):
-    name = asset.get("name", "")
-    if name.endswith(".AppImage"):
-        print(asset.get("direct_asset_url", ""))
-        break
-EOF
-)
-
 echo ">>> Installing AppImageUpdate..."
 
 APPIMAGEUPDATE_URL=$(get_latest_appimage "AppImage/AppImageUpdate")
@@ -458,8 +440,14 @@ find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.ali
 rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
 
 # Remove GNOME games
-equery list 'games-board/*'
-equery list 'games-puzzle/*'
-emerge -C $(qlist -IC 'games-board/*') $(qlist -IC 'games-puzzle/*')
+# equery list 'games-board/*'
+# equery list 'games-puzzle/*'
+
+# Remove GNOME games
+# echo ">>> Cleaning up GNOME games..."
+# GNOME_GAMES=$(qlist -IC 'games-board/*' 'games-puzzle/*' 2>/dev/null)
+# if [ -n "$GNOME_GAMES" ]; then
+  # emerge --unmerge $GNOME_GAMES
+# fi
 
 echo ">>> LiveCD configuration complete"
