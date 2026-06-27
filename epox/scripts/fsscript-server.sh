@@ -25,8 +25,6 @@ echo "sys-apps/systemd" >> /etc/portage/package.mask/server
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render livecd
 
 emerge --quiet --getbinpkg --noreplace \
-  app-shells/zsh \
-  app-shells/zsh-syntax-highlighting \
   net-misc/dhcpcd \
   net-wireless/wpa_supplicant \
   sys-boot/efibootmgr \
@@ -105,9 +103,6 @@ EOF
 chmod +x /etc/init.d/lpe-mitigations
 rc-update add lpe-mitigations boot
 
-echo ">>> Setting up Zsh as default shell..."
-chsh -s /bin/zsh root
-chsh -s /bin/zsh livecd
 
 echo ">>> Configuring OpenRC services..."
 rc-update add sshd default
@@ -144,4 +139,3 @@ find /usr/share/locale \
      -exec rm -rf {} + 2>/dev/null || true
 
 echo ">>> Server LiveCD configuration complete"
-
