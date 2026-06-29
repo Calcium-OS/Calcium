@@ -410,7 +410,14 @@ rc-update add cronie default 2>/dev/null || true
 rc-update add tailscale default 2>/dev/null || true
 rc-update add calcium-save default 2>/dev/null || true
 rc-update add zram-init boot 2>/dev/null || true
-run_optional "Start tailscale container service" rc-service tailscale start
+
+# Verbose attempt to start Tailscale during the build for diagnostics
+echo ">>> Testing Tailscale service initialization..."
+if ! rc-service --verbose tailscale start; then
+  echo ":: [INFO] Tailscale failed to start in the CI environment (this is expected in unprivileged chroots)." >&2
+  echo ":: [DIAGNOSTIC] Checking tailscale service status:" >&2
+  rc-service tailscale status || true
+fi
 
 mkdir -p /etc/skel/.local/bin
 cat >> /etc/bash/bashrc <<'BASHRC'
