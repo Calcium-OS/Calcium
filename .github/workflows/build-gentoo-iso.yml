@@ -51,11 +51,9 @@ jobs:
           df -h
 
           echo "=== Top 15 Largest Directories/Files on Host ==="
-          # Since the host root is mounted to /host, we can inspect what's consuming space
           find /host/usr /host/opt /host/var -maxdepth 3 -exec du -sh {} + 2>/dev/null | sort -rh | head -n 15 || true
 
           echo "=== Cleaning Up Host Space ==="
-          # Safely purge large host directories through the /host mount point
           rm -rf /host/usr/local/lib/android || true
           rm -rf /host/usr/share/dotnet || true
           rm -rf /host/opt/ghc || true
@@ -63,7 +61,6 @@ jobs:
           rm -rf /host/usr/lib/jvm || true
           rm -rf /host/usr/share/swift || true
 
-          # Clean container local temporary allocations
           rm -rf /tmp/*
           rm -rf /var/tmp/*
 
@@ -79,7 +76,6 @@ jobs:
           mkdir -p /etc/portage/package.accept_keywords
           printf '%s\n' 'dev-util/catalyst ~amd64' > /etc/portage/package.accept_keywords/catalyst
           
-          # FIX: Enable xz, zstd, lz4, and lzma compression engines for squashfs-tools
           mkdir -p /etc/portage/package.use
           printf '%s\n' \
             '>=sys-apps/util-linux-2.41.4-r1 python' \
@@ -96,7 +92,6 @@ jobs:
           mkdir -p /var/tmp/ccache /var/tmp/catalyst/packages /var/cache/binpkgs
           cp -rv ${{ matrix.variant.portage_dir }} ${{ matrix.variant.portage_confdir }}
           
-          # Convert package.license file to a directory to satisfy catalyst/fsscript expectations
           if [ -f "${{ matrix.variant.portage_confdir }}/package.license" ]; then
             mv "${{ matrix.variant.portage_confdir }}/package.license" /tmp/pkg_license
             mkdir -p "${{ matrix.variant.portage_confdir }}/package.license"
@@ -214,6 +209,14 @@ jobs:
       - name: Build livecd-stage2 ISO via catalyst
         run: |
           export CATALYST_STOREDIR
+          
+          # METHOD 3: Dynamic Spec Injection for Target-Specific Compression (Server Only)
+          if [ "${{ matrix.variant.target }}" = "server" ]; then
+            echo ">>> Injecting ultra XZ compression settings into Server spec file..."
+            sed -i '/livecd\/squashfs_args/d' /repo/${{ matrix.variant.spec_file }}
+            echo 'livecd/squashfs_args: -comp xz -Xbcj x86 -b 1M -Xdict-size 100%' >> /repo/${{ matrix.variant.spec_file }}
+          fi
+
           catalyst -f /repo/${{ matrix.variant.spec_file }}
 
       - name: Create rootfs tarball from ISO
@@ -258,6 +261,10 @@ jobs:
           
           echo "::group::Cleaning up & Creating Tarball"
           echo "Creating final rootfs tarball..."
+          
+          # METHOD 2: Force extreme multi-threaded XZ preset parameters
+          export XZ_OPT="-9e -T 0"
+          
           tar \
             --exclude=home/livecd \
             --exclude=root/.cache \
