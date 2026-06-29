@@ -206,19 +206,20 @@ jobs:
             echo "No cached catalyst state found, will do full build"
           fi
 
-      - name: Build livecd-stage2 ISO via catalyst
-        run: |
-          export CATALYST_STOREDIR
+          - name: Build livecd-stage2 ISO via catalyst
+                  run: |
+                    export CATALYST_STOREDIR
+                    
+                    # METHOD 3: Dynamic Spec Injection for Target-Specific Compression (Server Only)
+                    if [ "${{ matrix.variant.target }}" = "server" ]; then
+                      echo ">>> Injecting ultra XZ compression settings into Server spec file..."
+                      sed -i '/livecd\/squashfs_args/d' /repo/${{ matrix.variant.spec_file }}
+                      # Escaped % to %% so Python/Catalyst parser doesn't choke on it
+                      echo 'livecd/squashfs_args: -comp xz -Xbcj x86 -b 1M -Xdict-size 100%%' >> /repo/${{ matrix.variant.spec_file }}
+                    fi
           
-          # METHOD 3: Dynamic Spec Injection for Target-Specific Compression (Server Only)
-          if [ "${{ matrix.variant.target }}" = "server" ]; then
-            echo ">>> Injecting ultra XZ compression settings into Server spec file..."
-            sed -i '/livecd\/squashfs_args/d' /repo/${{ matrix.variant.spec_file }}
-            echo 'livecd/squashfs_args: -comp xz -Xbcj x86 -b 1M -Xdict-size 100%' >> /repo/${{ matrix.variant.spec_file }}
-          fi
-
-          catalyst -f /repo/${{ matrix.variant.spec_file }}
-
+                    catalyst -f /repo/${{ matrix.variant.spec_file }}
+          
       - name: Create rootfs tarball from ISO
         run: |
           set -euo pipefail
