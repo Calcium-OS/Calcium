@@ -11,6 +11,8 @@ env:
   CATALYST_STOREDIR: /var/tmp/catalyst
   STAGE3_BASE: https://distfiles.gentoo.org/releases/amd64/autobuilds
   PORTAGE_BINHOST: https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64
+  # Change this value (e.g., v1 -> v2) to completely bust/clear all CI caches
+  CACHE_VERSION: v1
 
 jobs:
   build-iso:
@@ -46,13 +48,10 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-
           echo "=== Disk Before Cleanup ==="
           df -h
-
           echo "=== Top 15 Largest Directories/Files on Host ==="
           find /host/usr /host/opt /host/var -maxdepth 3 -exec du -sh {} + 2>/dev/null | sort -rh | head -n 15 || true
-
           echo "=== Cleaning Up Host Space ==="
           rm -rf /host/usr/local/lib/android || true
           rm -rf /host/usr/share/dotnet || true
@@ -60,10 +59,8 @@ jobs:
           rm -rf /host/opt/hostedtoolcache || true
           rm -rf /host/usr/lib/jvm || true
           rm -rf /host/usr/share/swift || true
-
           rm -rf /tmp/*
           rm -rf /var/tmp/*
-
           echo "=== Disk After Cleanup ==="
           df -h
 
@@ -75,13 +72,13 @@ jobs:
           emerge --oneshot --getbinpkg sys-devel/bc
           mkdir -p /etc/portage/package.accept_keywords
           printf '%s\n' 'dev-util/catalyst ~amd64' > /etc/portage/package.accept_keywords/catalyst
-          
+
           mkdir -p /etc/portage/package.use
           printf '%s\n' \
             '>=sys-apps/util-linux-2.41.4-r1 python' \
             '>=sys-boot/grub-2.14-r5 grub_platforms_efi-32' \
             'sys-fs/squashfs-tools xz zstd lz4 lzma' > /etc/portage/package.use/catalyst
-            
+
           emerge --getbinpkg catalyst dev-vcs/git sys-fs/squashfs-tools sys-fs/squashfs-tools-ng sys-boot/efibootmgr
 
       - name: Configure catalyst
@@ -91,7 +88,7 @@ jobs:
           mkdir -p /etc/catalyst
           mkdir -p /var/tmp/ccache /var/tmp/catalyst/packages /var/cache/binpkgs
           cp -rv ${{ matrix.variant.portage_dir }} ${{ matrix.variant.portage_confdir }}
-          
+
           if [ -f "${{ matrix.variant.portage_confdir }}/package.license" ]; then
             mv "${{ matrix.variant.portage_confdir }}/package.license" /tmp/pkg_license
             mkdir -p "${{ matrix.variant.portage_confdir }}/package.license"
@@ -113,10 +110,10 @@ jobs:
             /var/cache/binpkgs
             /var/tmp/catalyst/packages
             /var/tmp/ccache
-          key: catalyst-${{ matrix.variant.target }}-${{ github.run_id }}
+          key: ${{ env.CACHE_VERSION }}-catalyst-${{ matrix.variant.target }}-${{ github.run_id }}
           restore-keys: |
-            catalyst-${{ matrix.variant.target }}-
-            catalyst-
+            ${{ env.CACHE_VERSION }}-catalyst-${{ matrix.variant.target }}-
+            ${{ env.CACHE_VERSION }}-catalyst-
 
       - name: Get latest seed stage3 filename
         id: seed-version
@@ -136,7 +133,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: /var/tmp/catalyst/builds/default/stage3-amd64-openrc-latest.tar.xz
-          key: seed-stage3-${{ steps.seed-version.outputs.filename }}
+          key: ${{ env.CACHE_VERSION }}-seed-stage3-${{ steps.seed-version.outputs.filename }}
 
       - name: Download seed stage3
         if: steps.cache-seed.outputs.cache-hit != 'true'
@@ -177,7 +174,7 @@ jobs:
             ${{ matrix.variant.portage_dir }}/make.conf \
             epox/env/catalystrc \
             | sha256sum | cut -d' ' -f1)
-          echo "key=catalyst-state-${{ matrix.variant.target }}-$HASH" >> "$GITHUB_OUTPUT"
+          echo "key=${{ env.CACHE_VERSION }}-catalyst-state-${{ matrix.variant.target }}-$HASH" >> "$GITHUB_OUTPUT"
 
       - name: Cache catalyst build state (iterative/delta builds)
         uses: actions/cache@v4
@@ -211,11 +208,11 @@ jobs:
       - name: Build livecd-stage2 ISO via catalyst
         run: |
           export CATALYST_STOREDIR
-          
+
           if [ "${{ matrix.variant.target }}" = "server" ]; then
-            echo ">>> Injecting ultra XZ compression settings into Server spec file..."
-            sed -i '/livecd\/squashfs_args/d' /repo/${{ matrix.variant.spec_file }}
-            echo 'livecd/squashfs_args: -comp xz -Xbcj x86 -b 1M -Xdict-size 100%%' >> /repo/${{ matrix.variant.spec_file }}
+            echo ">>> Forcing ultra XZ compression via mksquashfs environment..."
+            git checkout -- /repo/${{ matrix.variant.spec_file }} 2>/dev/null || true
+            export MKSQUASHFS_OPTIONS="-comp xz -Xbcj x86 -b 1M -Xdict-size 100%"
           fi
 
           catalyst -f /repo/${{ matrix.variant.spec_file }}
@@ -224,11 +221,11 @@ jobs:
         run: |
           set -euo pipefail
           ISO="/${{ matrix.variant.iso_name }}.iso"
-          
+
           echo "::group::Installing userspace ISO tools (xorriso)"
           emerge --getbinpkg dev-libs/libisoburn sys-fs/squashfs-tools
           echo "::endgroup::"
-          
+
           echo "::group::Extracting ISO to userspace"
           if [ ! -f "$ISO" ]; then
             echo "::error::ISO file not found at $ISO"
@@ -238,10 +235,10 @@ jobs:
           mkdir -p /mnt/iso
           echo "Extracting $ISO to /mnt/iso using xorriso..."
           xorriso -osirrox on -indev "$ISO" -extract / /mnt/iso || { echo "::error::Failed to extract ISO"; exit 1; }
-          
+
           echo "Searching for squashfs files..."
           SQUASHFS_PATH=$(find -L /mnt/iso -type f -name "*.squashfs" | head -n1)
-          
+
           if [ -z "$SQUASHFS_PATH" ]; then
             echo "::error::Could not find a valid .squashfs file inside the ISO!"
             echo "Dumping ISO contents for debugging:"
@@ -250,7 +247,7 @@ jobs:
           fi
           echo "Found SQUASHFS at: $SQUASHFS_PATH"
           echo "::endgroup::"
-          
+
           echo "::group::Unpacking SquashFS"
           mkdir -p /tmp/rootfs
           if ! unsquashfs -d /tmp/rootfs "$SQUASHFS_PATH"; then
@@ -259,12 +256,12 @@ jobs:
           fi
           echo "Extraction successful."
           echo "::endgroup::"
-          
+
           echo "::group::Cleaning up & Creating Tarball"
           echo "Creating final rootfs tarball..."
-          
+
           export XZ_OPT="-9e -T 0"
-          
+
           tar \
             --exclude=home/livecd \
             --exclude=root/.cache \
@@ -274,7 +271,7 @@ jobs:
             --exclude=var/log \
             -cJf /calcium-rootfs-${{ matrix.variant.target }}.tar.xz \
             -C /tmp/rootfs . || { echo "::error::Tarball creation failed"; exit 1; }
-          
+
           echo "Tarball created successfully."
           rm -rf /mnt/iso
           echo "::endgroup::"
