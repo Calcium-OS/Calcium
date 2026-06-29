@@ -113,7 +113,6 @@ jobs:
             /var/cache/binpkgs
             /var/tmp/catalyst/packages
             /var/tmp/ccache
-          # FIXED: Matrix-aware rolling cache key so it fallbacks incrementally instead of dropping everything on file modifications
           key: catalyst-${{ matrix.variant.target }}-${{ github.run_id }}
           restore-keys: |
             catalyst-${{ matrix.variant.target }}-
@@ -209,20 +208,17 @@ jobs:
             echo "No cached catalyst state found, will do full build"
           fi
 
-          - name: Build livecd-stage2 ISO via catalyst
-                  run: |
-                    export CATALYST_STOREDIR
-                    
-                    if [ "${{ matrix.variant.target }}" = "server" ]; then
-                      echo ">>> Forcing ultra XZ compression via mksquashfs environment..."
-                      # Clean up any leftover modifications from previous runs
-                      git checkout -- /repo/${{ matrix.variant.spec_file }} 2>/dev/null || true
-                      
-                      # Export global mksquashfs compression environment overrides
-                      export MKSQUASHFS_OPTIONS="-comp xz -Xbcj x86 -b 1M -Xdict-size 100%"
-                    fi
+      - name: Build livecd-stage2 ISO via catalyst
+        run: |
+          export CATALYST_STOREDIR
           
-                    catalyst -f /repo/${{ matrix.variant.spec_file }}
+          if [ "${{ matrix.variant.target }}" = "server" ]; then
+            echo ">>> Injecting ultra XZ compression settings into Server spec file..."
+            sed -i '/livecd\/squashfs_args/d' /repo/${{ matrix.variant.spec_file }}
+            echo 'livecd/squashfs_args: -comp xz -Xbcj x86 -b 1M -Xdict-size 100%%' >> /repo/${{ matrix.variant.spec_file }}
+          fi
+
+          catalyst -f /repo/${{ matrix.variant.spec_file }}
 
       - name: Create rootfs tarball from ISO
         run: |
@@ -267,7 +263,6 @@ jobs:
           echo "::group::Cleaning up & Creating Tarball"
           echo "Creating final rootfs tarball..."
           
-          # Force extreme multi-threaded XZ preset parameters
           export XZ_OPT="-9e -T 0"
           
           tar \
