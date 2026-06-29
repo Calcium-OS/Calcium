@@ -51,8 +51,6 @@ emerge --quiet --getbinpkg --noreplace \
   net-misc/dhcpcd \
   sys-boot/efibootmgr \
   app-portage/portage-utils \
-  app-editors/vim \
-  sys-process/htop \
   sys-process/btop \
   app-admin/sudo \
   net-misc/ntp \
@@ -451,14 +449,26 @@ find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.ali
 rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
 
 # Remove GNOME games
-# equery list 'games-board/*'
-# equery list 'games-puzzle/*'
 
-# Remove GNOME games
-# echo ">>> Cleaning up GNOME games..."
-# GNOME_GAMES=$(qlist -IC 'games-board/*' 'games-puzzle/*' 2>/dev/null)
-# if [ -n "$GNOME_GAMES" ]; then
-  # emerge --unmerge $GNOME_GAMES
-# fi
+run_optional "Remove game" emerge -C games-puzzle/five-or-more
+run_optional "Remove game" emerge -C games-puzzle/gnome-klotski
+run_optional "Remove game" emerge -C games-puzzle/gnome-tetravex
+run_optional "Remove game" emerge -C games-puzzle/hitori
+run_optional "Remove game" emerge -C games-board/four-in-a-row
+run_optional "Remove game" emerge -C games-arcade/gnome-robots
+run_optional "Remove game" emerge -C games-puzzle/gnome-taquin
+run_optional "Remove game" emerge -C games-board/iagno
+run_optional "Remove game" emerge -C games-puzzle/quadrapassel
+
+# Keep these games because chess is fun, and Mahjong is a Yakuza player's nightmare. I do not hold any foul feelings towards Shogi thought. Also known as, people may actually like these games.
+
+# emerge -C games-board/gnome-chess
+# emerge -C games-board/gnome-mahjongg
+
+run_optional "Remove game" emerge -C games-board/gnome-mines
+run_optional "Remove game" emerge -C games-arcade/gnome-nibbles
+run_optional "Remove game" emerge -C games-puzzle/gnome-sudoku
+run_optional "Remove game" emerge -C games-puzzle/lightsoff
+run_optional "Remove game" emerge -C games-puzzle/swell-foop
 
 echo ">>> LiveCD configuration complete"
