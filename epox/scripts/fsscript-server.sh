@@ -107,8 +107,16 @@ rc-update add lpe-mitigations boot
 echo ">>> Configuring OpenRC services..."
 rc-update add sshd default
 rc-update add dhcpcd default
-rc-update add tailscale default
 rc-update add cronie default
+rc-update add tailscale default
+
+# Verbose attempt to start Tailscale during the build for diagnostics
+echo ">>> Testing Tailscale service initialization..."
+if ! rc-service --verbose tailscale start; then
+  echo ":: [INFO] Tailscale failed to start in the CI environment (this is expected in unprivileged chroots)." >&2
+  echo ":: [DIAGNOSTIC] Checking tailscale service status:" >&2
+  rc-service tailscale status || true
+fi
 
 echo ">>> Configuring doas for live user..."
 touch /etc/doas.conf
