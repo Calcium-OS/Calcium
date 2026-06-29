@@ -103,7 +103,6 @@ EOF
 chmod +x /etc/init.d/lpe-mitigations
 rc-update add lpe-mitigations boot
 
-
 echo ">>> Configuring OpenRC services..."
 rc-update add sshd default
 rc-update add dhcpcd default
@@ -125,10 +124,6 @@ chmod 0400 /etc/doas.conf
 
 echo "permit persist :wheel" >> /etc/doas.conf
 
-# echo ">>> Removing passwords..."
-# passwd -d root
-# passwd -d livecd
-
 echo 'root:root' | chpasswd
 echo 'livecd:livecd' | chpasswd
 
@@ -138,6 +133,13 @@ rm -rf /var/db/repos/gentoo \
        /var/tmp/ccache \
        /var/tmp/portage \
        /var/cache/distfiles 2>/dev/null || true
+
+echo ">>> Cleaning up to reduce ISO size..."
+rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
+rm -rf /var/cache /home/livecd/var/cache 2>/dev/null || true
+rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
+rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
+rm -rf /var/log/* 2>/dev/null || true
 
 find /usr/share/locale \
      -mindepth 1 \
