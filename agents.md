@@ -1,5 +1,4 @@
-Use gentoo catalyst, binaries, and a stage 3 to make a github CI that builds a gentoo ISO with a gnome desktop using openrc, and zsh
-
-use efistub and import configuration files from a folder that is in the epox
-
-you have the gh binary avaliable
+- Fix the CI builds because they are erroring right now due to a cache change (Use the gh binary to fix it.)
+- Move the server and desktop builds to use zstd
+- setup a bin host with this repo, combine that with github actions caching so builds will be much faster
+- move emerge from rysnc to git as it is faster   
