@@ -49,6 +49,7 @@ emerge --quiet --getbinpkg --noreplace \
   net-misc/rsync \
   net-misc/openssh \
   net-vpn/tailscale \
+  app-arch/zstd \
   sys-boot/grub
 
 echo ">>> Applying Copy Fail / Dirty Frag / Fragnesia mitigations..."
