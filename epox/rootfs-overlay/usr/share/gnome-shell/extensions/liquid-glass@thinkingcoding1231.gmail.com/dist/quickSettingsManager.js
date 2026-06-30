@@ -171,7 +171,7 @@ export class QuickSettingsManager {
                 this._removeEffect();
         });
         connectSetting('enable-quick-settings-animation', () => {
-            this._enableAnimation = this._settings.get_boolean('enable-quick-settings-animation');
+            this._enableAnimation = false;
         });
         connectSetting('quick-settings-spring-stiffness', () => {
             this._springStiffness = this._settings.get_double('quick-settings-spring-stiffness');
@@ -842,7 +842,7 @@ export class QuickSettingsManager {
         actor._currentTargetColor = color;
         actor._currentInsensitiveState = isInsensitive;
         // Kick off the color transition animation!
-        this._animateActorColor(actor, color, isInsensitive, 380, skipAnimations);
+        this._animateActorColor(actor, color, isInsensitive, 380, true);
     }
     // Removes all dynamically applied adaptive text color styles and stops related animations
     _clearAdaptiveStyles() {

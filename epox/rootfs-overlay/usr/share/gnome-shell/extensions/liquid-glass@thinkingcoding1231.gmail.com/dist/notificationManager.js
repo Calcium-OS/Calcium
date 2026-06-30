@@ -487,7 +487,7 @@ export class NotificationManager {
         if (actor._currentTargetColor === color)
             return;
         actor._currentTargetColor = color;
-        this._animateActorColor(actor, color, 380, skipAnimations);
+        this._animateActorColor(actor, color, 380, true);
     }
     _clearAdaptiveStyles() {
         for (const [actor, style] of this._styledActors.entries()) {
