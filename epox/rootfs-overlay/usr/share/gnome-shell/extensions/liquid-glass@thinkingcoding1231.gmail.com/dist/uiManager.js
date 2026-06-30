@@ -243,7 +243,7 @@ export class UIManager {
                 this._removeEffect();
         });
         connectSetting('enable-menu-animation', () => {
-            this._enableAnimation = this._settings.get_boolean('enable-menu-animation');
+            this._enableAnimation = false;
         });
         connectSetting('menu-spring-stiffness', () => {
             this._springStiffness = this._settings.get_double('menu-spring-stiffness');
@@ -858,7 +858,7 @@ export class UIManager {
         actor._currentTargetColor = color;
         actor._currentInsensitiveState = isInsensitive;
         // Kick off the color transition animation!
-        this._animateActorColor(actor, color, isInsensitive, 380, skipAnimations);
+        this._animateActorColor(actor, color, isInsensitive, 380, true);
     }
     // Removes all dynamically applied adaptive text color styles and stops related animations
     _clearAdaptiveStyles() {
