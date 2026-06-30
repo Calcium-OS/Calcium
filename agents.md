@@ -1,4 +1,4 @@
-- Fix the CI builds because they are erroring right now due to a cache change (Use the gh binary to fix it.)
-- Move the server and desktop builds to use zstd
-- setup a bin host with this repo, combine that with github actions caching so builds will be much faster
-- move emerge from rysnc to git as it is faster   
+- [DONE] Fix the CI builds because they were erroring due to a cache change (actions/cache@v4 -> v6, actions/checkout@v4 -> v7, CACHE_VERSION v1 -> v2, fixed autoresume step with nullglob/shopt)
+- [DONE] Move the server and desktop builds to use zstd (gnome spec: gzip->zstd, server CI: removed XZ override, both now use --zstd dracut)
+- [DONE] Setup a binhost with this repo, combine that with github actions caching so builds will be much faster (local file:// binhost configured from cached packages, PORTAGE_BINHOST includes local cache first + official fallback)
+- [DONE] Move emerge from rsync to git as it is faster (emerge-webrsync replaced with git clone --depth=1, sync-type changed to git)   

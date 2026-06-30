@@ -12,7 +12,7 @@ env:
   STAGE3_BASE: https://distfiles.gentoo.org/releases/amd64/autobuilds
   PORTAGE_BINHOST: https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64
   # Change this value (e.g., v1 -> v2) to completely bust/clear all CI caches
-  CACHE_VERSION: v1
+  CACHE_VERSION: v2
 
 jobs:
   build-iso:
@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Free disk space & Inspect System
         shell: bash
@@ -67,8 +67,8 @@ jobs:
       - name: Initialize Portage tree and install catalyst
         run: |
           mkdir -p /etc/portage/repos.conf
-          printf '%s\n' '[gentoo]' 'location = /var/db/repos/gentoo' 'sync-type = webrsync' 'auto-sync = yes' > /etc/portage/repos.conf/gentoo.conf
-          emerge-webrsync
+          printf '%s\n' '[gentoo]' 'location = /var/db/repos/gentoo' 'sync-type = git' 'sync-uri = https://anongit.gentoo.org/git/repo/sync/gentoo.git' 'auto-sync = yes' > /etc/portage/repos.conf/gentoo.conf
+          git clone --depth=1 https://anongit.gentoo.org/git/repo/sync/gentoo.git /var/db/repos/gentoo
           emerge --oneshot --getbinpkg sys-devel/bc
           mkdir -p /etc/portage/package.accept_keywords
           printf '%s\n' 'dev-util/catalyst ~amd64' > /etc/portage/package.accept_keywords/catalyst
@@ -104,7 +104,7 @@ jobs:
           echo "$MIRRORS" >> /etc/portage/make.conf
 
       - name: Cache portage binary packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             /var/cache/binpkgs
@@ -114,6 +114,12 @@ jobs:
           restore-keys: |
             ${{ env.CACHE_VERSION }}-catalyst-${{ matrix.variant.target }}-
             ${{ env.CACHE_VERSION }}-catalyst-
+
+      - name: Setup local binhost from cached packages
+        run: |
+          sed -i '/^PORTAGE_BINHOST/d' /etc/portage/make.conf
+          echo "PORTAGE_BINHOST=\"file:///var/cache/binpkgs https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64\"" >> /etc/portage/make.conf
+          echo "::notice::Binhost: local cache first, Gentoo official as fallback"
 
       - name: Get latest seed stage3 filename
         id: seed-version
@@ -130,7 +136,7 @@ jobs:
 
       - name: Cache seed stage3
         id: cache-seed
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /var/tmp/catalyst/builds/default/stage3-amd64-openrc-latest.tar.xz
           key: ${{ env.CACHE_VERSION }}-seed-stage3-${{ steps.seed-version.outputs.filename }}
@@ -177,18 +183,20 @@ jobs:
           echo "key=${{ env.CACHE_VERSION }}-catalyst-state-${{ matrix.variant.target }}-$HASH" >> "$GITHUB_OUTPUT"
 
       - name: Cache catalyst build state (iterative/delta builds)
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: /var/tmp/catalyst/tmp
           key: ${{ steps.cache-state-key.outputs.key }}
 
       - name: Manage catalyst autoresume for delta builds
+        shell: bash
         run: |
           STATE_DIR="$CATALYST_STOREDIR/tmp/default/livecd-stage2-${{ matrix.variant.version_stamp }}"
           if [ -d "$STATE_DIR" ]; then
             echo "Cached catalyst state found. Removing autoresume markers for post-build steps..."
-            ls -la "$STATE_DIR"/.autoresume-* 2>/dev/null || true
-            for marker in "$STATE_DIR"/.autoresume-*; do
+            shopt -s nullglob
+            markers=( "$STATE_DIR"/.autoresume-* )
+            for marker in "${markers[@]}"; do
               [ -f "$marker" ] || continue
               name=$(basename "$marker")
               case "$name" in
@@ -208,13 +216,6 @@ jobs:
       - name: Build livecd-stage2 ISO via catalyst
         run: |
           export CATALYST_STOREDIR
-
-          if [ "${{ matrix.variant.target }}" = "server" ]; then
-            echo ">>> Forcing ultra XZ compression via mksquashfs environment..."
-            git checkout -- /repo/${{ matrix.variant.spec_file }} 2>/dev/null || true
-            export MKSQUASHFS_OPTIONS="-comp xz -Xbcj x86 -b 1M -Xdict-size 100%"
-          fi
-
           catalyst -f /repo/${{ matrix.variant.spec_file }}
 
       - name: Create rootfs tarball from ISO
@@ -277,14 +278,14 @@ jobs:
           echo "::endgroup::"
 
       - name: Upload ISO artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.variant.iso_name }}
           path: /${{ matrix.variant.iso_name }}.iso
           compression-level: 0
 
       - name: Upload rootfs tarball
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: calcium-rootfs-${{ matrix.variant.target }}
           path: /calcium-rootfs-${{ matrix.variant.target }}.tar.xz
@@ -298,25 +299,25 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Download GNOME ISO
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: gentoo-gnome-openrc-amd64
 
       - name: Download Server ISO
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: gentoo-server-openrc-amd64
 
       - name: Download GNOME rootfs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: calcium-rootfs-gnome
 
       - name: Download Server rootfs
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: calcium-rootfs-server
 
