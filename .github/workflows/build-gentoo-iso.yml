@@ -82,7 +82,8 @@ jobs:
           printf '%s\n' \
             '>=sys-apps/util-linux-2.41.4-r1 python' \
             '>=sys-boot/grub-2.14-r5 grub_platforms_efi-32' \
-            'sys-fs/squashfs-tools xz zstd lz4 lzma' > /etc/portage/package.use/catalyst
+            'sys-fs/squashfs-tools xz zstd lz4 lzma' \
+            'sys-fs/squashfs-tools-ng zstd' > /etc/portage/package.use/catalyst
 
           emerge --getbinpkg catalyst dev-vcs/git sys-fs/squashfs-tools sys-fs/squashfs-tools-ng sys-boot/efibootmgr
 
