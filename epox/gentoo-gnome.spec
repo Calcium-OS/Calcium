@@ -19,7 +19,7 @@ boot/kernel/gentoo/distkernel: yes
 boot/kernel/gentoo/sources: sys-kernel/gentoo-kernel-bin
 
 livecd/fstype: squashfs
-livecd/fsops: -c gzip
+livecd/fsops: -comp zstd -Xcompression-level 19 -b 1M
 livecd/root_overlay: /repo/epox/rootfs-overlay
 livecd/iso: /gentoo-gnome-openrc-amd64.iso
 livecd/type: generic-livecd
@@ -27,7 +27,7 @@ livecd/volid: Gentoo_GNOME_Live
 
 livecd/bootargs: root=live:CDLABEL=Gentoo_GNOME_Live
 
-boot/kernel/gentoo/dracut_args: --gzip --no-hostonly -a dmsquash-live -a dm -o i18n -o crypt -I busybox
+boot/kernel/gentoo/dracut_args: --zstd --no-hostonly -a dmsquash-live -a dm -o i18n -o crypt -I busybox
 
 livecd/rm: /var/cache/distfiles /var/cache/binpkgs /var/tmp/ccache /var/db/repos/gentoo /var/tmp/portage /usr/portage/distfiles
 
