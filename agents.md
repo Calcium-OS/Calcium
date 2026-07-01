@@ -1,4 +1,3 @@
-- [DONE] Fix the CI builds because they were erroring due to a cache change (actions/cache@v4 -> v6, actions/checkout@v4 -> v7, CACHE_VERSION v1 -> v2, fixed autoresume step with nullglob/shopt)
-- [DONE] Move the server and desktop builds to use zstd (gnome spec: gzip->zstd, server CI: removed XZ override, both now use --zstd dracut)
-- [DONE] Setup a binhost with this repo, combine that with github actions caching so builds will be much faster (local file:// binhost configured from cached packages, PORTAGE_BINHOST includes local cache first + official fallback)
-- [DONE] Move emerge from rsync to git as it is faster (emerge-webrsync replaced with git clone --depth=1, sync-type changed to git)   
+- automation confiugraiton of sunshine with GNOME/Wayland/Virtual monitor support for Steam Big Picture in the flatpka  and the desktop
+- The user should get a desktop, stema big picture, and ones for virutal desktop that are in full screen for the Moonlight client
+- 
