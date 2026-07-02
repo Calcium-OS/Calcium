@@ -77,7 +77,6 @@ emerge --quiet --getbinpkg --noreplace \
   dev-python/pygobject \
   media-libs/gsound \
   sys-boot/grub \
-  sys-fs/squashfs-tools \
   app-admin/calamares \
   app-arch/7zip \
   app-arch/zpaq \
@@ -96,9 +95,10 @@ size0="2048"
 algo0=zstd
 ZRAMCONF
 
-echo ">>> Configuring Calamares USE flags..."
+echo ">>> Configuring calamares..."
 mkdir -p /etc/portage/package.use /etc/portage/package.accept_keywords
-echo "app-admin/calamares kpmcore python qt6 qml" >> /etc/portage/package.use/calamares
+PYTHON_TARGET=$(python3 -c "import sys; print(f'python3_{sys.version_info.minor}')")
+echo "app-admin/calamares PYTHON_SINGLE_TARGET: ${PYTHON_TARGET}" >> /etc/portage/package.use/calamares
 echo "app-admin/calamares ~amd64" >> /etc/portage/package.accept_keywords/calamares
 
 echo ">>> Removing old Python installer..."
