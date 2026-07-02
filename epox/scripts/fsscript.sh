@@ -96,9 +96,8 @@ algo0=zstd
 ZRAMCONF
 
 echo ">>> Configuring calamares..."
-mkdir -p /etc/portage/package.use /etc/portage/package.accept_keywords
-PYTHON_TARGET=$(python3 -c "import sys; print(f'python3_{sys.version_info.minor}')")
-echo "app-admin/calamares PYTHON_SINGLE_TARGET: ${PYTHON_TARGET}" >> /etc/portage/package.use/calamares
+mkdir -p /etc/portage/package.accept_keywords
+echo 'PYTHON_SINGLE_TARGET="python3_12"' >> /etc/portage/make.conf
 echo "app-admin/calamares ~amd64" >> /etc/portage/package.accept_keywords/calamares
 
 echo ">>> Removing old Python installer..."
