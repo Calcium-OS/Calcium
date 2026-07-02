@@ -118,6 +118,9 @@ if ! rc-service --verbose tailscale start; then
   rc-service tailscale status || true
 fi
 
+echo ">>> Removing old Python GUI installer (not used on server)..."
+rm -rf /usr/share/calcium-installer
+
 echo ">>> Configuring doas for live user..."
 touch /etc/doas.conf
 chown root:root /etc/doas.conf

@@ -1,0 +1,14 @@
+---
+productName: "Calcium OS"
+shortProductName: "Calcium"
+version: "2026.1"
+versionName: "Calcium 2026.1"
+shortVersion: "2026.1"
+bootloaderEntryName: "Calcium OS"
+welcomeStyle: "Squid"
+welcomeImage: "squid.png"
+showSupportUrl: false
+showKnownIssuesUrl: false
+showReleaseNotesUrl: false
+showDonateUrl: false
+slideshow: "show.qml"
