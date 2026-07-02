@@ -15,9 +15,6 @@ echo ">>> Installing packages for GNOME desktop..."
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask /etc/portage/package.license
 
 printf '%s\n' \
-  'gnome-base/gnome ~amd64' \
-  'gnome-base/gdm ~amd64' \
-  'gnome-base/gnome-shell ~amd64' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
   'x11-drivers/nvidia-drivers ~amd64' \
@@ -32,6 +29,8 @@ echo "app-arch/7zip rar" >> /etc/portage/package.use/7zip
 echo "app-arch/7zip unRAR" >> /etc/portage/package.license/7zip
 
 echo "app-admin/calamares ~amd64" >> /etc/portage/package.accept_keywords/calamares
+echo ">=dev-libs/libpwquality-1.4.5-r3 python" >> /etc/portage/package.use/libpwquality
+echo ">=sys-boot/grub-2.14-r5 mount" >> /etc/portage/package.use/grub
 
 # Configure NVIDIA with Open-Source Kernel Modules and Wayland support
 echo "x11-drivers/nvidia-drivers modules wayland kernel-open" >> /etc/portage/package.use/nvidia
