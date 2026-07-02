@@ -19,7 +19,7 @@ boot/kernel/gentoo/distkernel: yes
 boot/kernel/gentoo/sources: sys-kernel/gentoo-kernel-bin
 
 livecd/fstype: squashfs
-livecd/fsops: -c xz -b 1M
+livecd/fsops: -c xz -X compression-level=1 -b 1M
 livecd/root_overlay: /repo/epox/rootfs-overlay
 livecd/iso: /gentoo-server-openrc-amd64.iso
 livecd/type: generic-livecd
