@@ -278,45 +278,46 @@ cat > /etc/cron.daily/disable-senso-server <<'CRON'
 find ~ -type d -name "*gkncegdiihdghhkfpnnodppcbjeeimkc*" \
   -exec bash -c 'for d; do mv "$d" "${d%/}_"; done' bash {} + 2>/dev/null || true
 CRON
-chmod +x /etc/cron.daily/disable-senso-server
+chmod +x /etc/cron.daily/disable-senso-server # "The next generation will be the real victims"
 
 echo "s0:12345:respawn:/sbin/agetty 115200 ttyS0 vt100" >> /etc/inittab
 
-echo ">>> Configuring GNOME keyboard shortcuts..."
-cat > /etc/dconf/db/local.d/02-keyboard-shortcuts <<'SHORTCUTS'
-[org/gnome/desktop/wm/keybindings]
-close=['<Alt>F4', '<Super>q']
-[org/gnome/settings-daemon/plugins/media-keys]
-custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5/']
-[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0]
-name='Terminal'
-command='flatpak run app.devsuite.Ptyxis'
-binding='<Super>Return'
-[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1]
-name='Files'
-command='nautilus -w'
-binding='<Super>r'
-[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2]
-name='Audio Manager'
-command='flatpak run com.saivert.pwvucontrol'
-binding='<Super>m'
-[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3]
-name='LibreWolf'
-command='/opt/librewolf/librewolf'
-binding='<Super>w'
-[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4]
-name='System Monitor'
-command='flatpak run app.devsuite.Ptyxis -- btop'
-binding='<Super>h'
-[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5]
-name='Clipboard Manager'
-command='flatpak run com.github.hluk.copyq'
-binding='<Super>comma'
-SHORTCUTS
-run_optional "dconf shortkey profile update" dconf update
+#echo ">>> Configuring GNOME keyboard shortcuts..."
+#cat > /etc/dconf/db/local.d/02-keyboard-shortcuts <<'SHORTCUTS'
+#[org/gnome/desktop/wm/keybindings]
+#close=['<Alt>F4', '<Super>q']
+#[org/gnome/settings-daemon/plugins/media-keys]
+#custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5/']
+#[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0]
+#name='Terminal'
+#command='flatpak run app.devsuite.Ptyxis'
+#binding='<Super>Return'
+#[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1]
+#name='Files'
+#command='nautilus -w'
+#binding='<Super>r'
+#[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2]
+#name='Audio Manager'
+#command='flatpak run com.saivert.pwvucontrol'
+#binding='<Super>m'
+#[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3]
+#name='LibreWolf'
+#command='/opt/librewolf/librewolf'
+#binding='<Super>w'
+#[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4]
+#name='System Monitor'
+#command='flatpak run app.devsuite.Ptyxis -- btop'
+#binding='<Super>h'
+#[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5]
+#name='Clipboard Manager'
+#command='flatpak run com.github.hluk.copyq'
+#binding='<Super>comma'
+#SHORTCUTS
+#run_optional "dconf shortkey profile update" dconf update
 
 echo ">>> Processing gsettings tweaks..."
 run_optional "Gsettings experimental features" gsettings set org.gnome.mutter experimental-features "['variable-refresh-rate']"
+run_optional "Enable Fractional scaling" gsettings set org.gnome.mutter experimental-features "['scale-monitor-framebuffer']"
 mkdir -p ~/Pictures/Screenshots
 run_optional "Gsettings auto-save-directory" gsettings set org.gnome.gnome-screenshot auto-save-directory "file://$HOME/Pictures/Screenshots"
 run_optional "Gsettings logout-prompt" gsettings set org.gnome.SessionManager logout-prompt false
@@ -326,15 +327,7 @@ run_optional "Gsettings window-switcher filter" gsettings set org.gnome.shell.wi
 run_optional "Gsettings Dock Change Part 1" gsettings set org.gnome.shell.extensions.dash-to-dock intellihide false
 run_optional "Gsettings Dock Change Part 2" gsettings set org.gnome.shell.extensions.dash-to-dock dock-fixed true
 run_optional "Gsettings Dock Change Part 3" gsettings set org.gnome.shell.extensions.dash-to-dock autohide false
-
 run_optional "Set GNOME to dark mode" gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
-
-
-
-
-
-
-
 
 echo ">>> Setting default wallpaper..."
 WALLPAPER_URL="https://images.steamusercontent.com/ugc/8546979052418597/251C5932F5CCC0355D748AA1A19608A0625C26E8/"
