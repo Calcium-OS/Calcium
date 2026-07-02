@@ -149,7 +149,14 @@ class InstallerBackend:
             f.write(fstab)
 
     def _chroot(self, mountpoint, cmd):
-        subprocess.run(["chroot", mountpoint] + cmd, capture_output=True, text=True)
+        result = subprocess.run(
+            ["chroot", mountpoint] + cmd, capture_output=True, text=True
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"chroot command {' '.join(cmd)} failed (code {result.returncode}):\n"
+                f"{result.stderr.strip()}"
+            )
 
     def configure_system(self, mountpoint, config, progress_callback=None):
         for d in ["proc", "sys", "dev"]:
