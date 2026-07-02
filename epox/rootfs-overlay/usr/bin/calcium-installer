@@ -1,5 +1,2 @@
-#!/usr/bin/env python3
-import sys
-sys.path.insert(0, '/usr/share/calcium-installer')
-from calcium_installer import main
-main()
+#!/bin/bash
+exec calamares "$@"

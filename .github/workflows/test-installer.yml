@@ -8,7 +8,7 @@ on:
       - 'epox/rootfs-overlay/usr/bin/calcium-update'
       - 'epox/rootfs-overlay/usr/bin/calcium-install-unattended'
       - 'epox/rootfs-overlay/etc/calcium-release'
-      - 'epox/rootfs-overlay/usr/share/calcium-installer/**'
+      - 'epox/rootfs-overlay/etc/calamares/**'
       - 'epox/scripts/fsscript.sh'
       - 'epox/scripts/fsscript-server.sh'
       - '.github/workflows/test-installer.yml'
@@ -19,7 +19,7 @@ on:
       - 'epox/rootfs-overlay/usr/bin/calcium-update'
       - 'epox/rootfs-overlay/usr/bin/calcium-install-unattended'
       - 'epox/rootfs-overlay/etc/calcium-release'
-      - 'epox/rootfs-overlay/usr/share/calcium-installer/**'
+      - 'epox/rootfs-overlay/etc/calamares/**'
       - 'epox/scripts/fsscript.sh'
       - 'epox/scripts/fsscript-server.sh'
       - '.github/workflows/test-installer.yml'
@@ -36,9 +36,6 @@ jobs:
   unit-test:
     if: github.event_name != 'workflow_run'
     runs-on: blacksmith-4vcpu-ubuntu-2404
-    defaults:
-      run:
-        working-directory: epox/rootfs-overlay/usr/share/calcium-installer
 
     steps:
       - uses: actions/checkout@v7
@@ -47,61 +44,37 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq \
-            python3-gi \
-            python3-gi-cairo \
-            gir1.2-gtk-4.0 \
-            gir1.2-adw-1 \
-            libgsound-dev \
+            python3-yaml \
             bash
 
-      - name: Check Python syntax
+      - name: Validate Calamares YAML configs
         run: |
-          python3 -m py_compile calcium_installer/__init__.py
-          python3 -m py_compile calcium_installer/app.py
-          python3 -m py_compile calcium_installer/backend.py
-          python3 -m py_compile calcium_installer/views.py
-          python3 -m py_compile ../../../usr/bin/calcium-installer
-
-      - name: Test module imports
-        run: |
-          python3 -c "
-          import sys
-          sys.path.insert(0, '.')
-          from calcium_installer.backend import InstallerBackend
-          from calcium_installer.views import WelcomePage, DiskPage, UserPage, SummaryPage, InstallPage, FinishPage
-          from calcium_installer.app import CalciumInstallerApp
-          print('All modules imported successfully')
-          "
-
-      - name: Test backend disk detection (read-only)
-        run: |
-          python3 -c "
-          import sys, json
-          sys.path.insert(0, '.')
-          from calcium_installer.backend import InstallerBackend
-          backend = InstallerBackend()
-          disks = backend.get_disks()
-          print(f'Disk detection works: {len(disks)} disks found')
-          for d in disks:
-              assert 'path' in d, 'Missing path'
-              assert 'size' in d, 'Missing size'
-              assert 'name' in d, 'Missing name'
-          print('Disk data structure valid')
-          "
+          for f in epox/rootfs-overlay/etc/calamares/settings.conf \
+                   epox/rootfs-overlay/etc/calamares/modules/*.conf \
+                   epox/rootfs-overlay/etc/calamares/branding/calcium/branding.desc; do
+            [ -f "$f" ] || { echo "MISSING: $f"; exit 1; }
+            python3 -c "
+import yaml, sys
+with open('$f') as f:
+    data = yaml.safe_load(f)
+print(f'OK: $f')
+" || exit 1
+          done
+          echo "All Calamares configs valid"
 
       - name: Validate fsscript.sh syntax
         run: |
-          bash -n ../../../../scripts/fsscript.sh
+          bash -n epox/scripts/fsscript.sh
           echo "fsscript.sh syntax OK"
 
       - name: Validate fsscript-server.sh syntax
         run: |
-          bash -n ../../../../scripts/fsscript-server.sh
+          bash -n epox/scripts/fsscript-server.sh
           echo "fsscript-server.sh syntax OK"
 
       - name: Validate calcium-update syntax
         run: |
-          bash -n ../../../usr/bin/calcium-update
+          bash -n epox/rootfs-overlay/usr/bin/calcium-update
           echo "calcium-update syntax OK"
 
       - name: Test calcium-update backup and apply logic

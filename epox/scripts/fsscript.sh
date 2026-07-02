@@ -77,6 +77,8 @@ emerge --quiet --getbinpkg --noreplace \
   dev-python/pygobject \
   media-libs/gsound \
   sys-boot/grub \
+  sys-fs/squashfs-tools \
+  app-admin/calamares \
   app-arch/7zip \
   app-arch/zpaq \
   net-vpn/tailscale \
@@ -93,6 +95,14 @@ flag0=
 size0="2048"
 algo0=zstd
 ZRAMCONF
+
+echo ">>> Configuring Calamares USE flags..."
+mkdir -p /etc/portage/package.use /etc/portage/package.accept_keywords
+echo "app-admin/calamares kpmcore python qt6 qml" >> /etc/portage/package.use/calamares
+echo "app-admin/calamares ~amd64" >> /etc/portage/package.accept_keywords/calamares
+
+echo ">>> Removing old Python installer..."
+rm -rf /usr/share/calcium-installer
 
 echo ">>> Enabling Guru overlay and installing opencode-bin..."
 run_optional "Guru repo enable" eselect repository enable guru

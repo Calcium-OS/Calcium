@@ -1,8 +1,8 @@
 [Desktop Entry]
-Name=Install Calcium Linux
+Name=Install Calcium OS
 Comment=Install this live system to your hard drive
-Exec=pkexec /usr/bin/calcium-installer
+Exec=pkexec calamares
 Icon=drive-harddisk
-Terminal=true
+Terminal=false
 Categories=System;Settings;X-GNOME-Settings-Panel;
 Type=Application
