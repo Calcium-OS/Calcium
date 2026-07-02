@@ -31,6 +31,8 @@ printf '%s\n' \
 echo "app-arch/7zip rar" >> /etc/portage/package.use/7zip
 echo "app-arch/7zip unRAR" >> /etc/portage/package.license/7zip
 
+echo "app-admin/calamares ~amd64" >> /etc/portage/package.accept_keywords/calamares
+
 # Configure NVIDIA with Open-Source Kernel Modules and Wayland support
 echo "x11-drivers/nvidia-drivers modules wayland kernel-open" >> /etc/portage/package.use/nvidia
 echo "x11-drivers/nvidia-drivers NVIDIA-2025" >> /etc/portage/package.license/nvidia
