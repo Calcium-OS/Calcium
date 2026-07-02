@@ -31,7 +31,7 @@ printf '%s\n' \
 echo "app-arch/7zip rar" >> /etc/portage/package.use/7zip
 echo "app-arch/7zip unRAR" >> /etc/portage/package.license/7zip
 
-echo "app-admin/calamares python_single_target_python3_12" >> /etc/portage/package.use/calamares
+echo "app-admin/calamares python_single_target_python3_12 -python_single_target_python3_14" >> /etc/portage/package.use/calamares
 echo "app-admin/calamares ~amd64" >> /etc/portage/package.accept_keywords/calamares
 
 # Configure NVIDIA with Open-Source Kernel Modules and Wayland support
