@@ -83,6 +83,7 @@ emerge --quiet --getbinpkg --noreplace --backtrack=100 \
   app-arch/zpaq \
   net-vpn/tailscale \
   dev-python/pip \
+  game-device-udev-rules \ # This does apply to the Steam Flatpak. It deals with udev rules. 
   gnome-extra/gnome-shell-extension-gsconnect
 
 echo ">>> Configuring zram swap..."
@@ -121,7 +122,6 @@ printf '%s\n' \
   com.mattjakeman.ExtensionManager \
   com.protonvpn.www \
   org.torproject.torbrowser-launcher \
-  org.wezfurlong.wezterm \
   dev.zed.Zed \
   com.heroicgameslauncher.hgl \
   io.github.streetpea.Chiaki4deck \
@@ -406,8 +406,9 @@ rc-update add dbus default 2>/dev/null || true
 rc-update add elogind default 2>/dev/null || true
 rc-update add cronie default 2>/dev/null || true
 rc-update add tailscale default 2>/dev/null || true
-rc-update add calcium-save default 2>/dev/null || true
 rc-update add zram-init boot 2>/dev/null || true
+rc-update add NetworkManager boot 2>/dev/null || true
+
 
 # Verbose attempt to start Tailscale during the build for diagnostics
 echo ">>> Testing Tailscale service initialization..."
@@ -475,5 +476,9 @@ run_optional "Remove game" emerge -C games-arcade/gnome-nibbles
 run_optional "Remove game" emerge -C games-puzzle/gnome-sudoku
 run_optional "Remove game" emerge -C games-puzzle/lightsoff
 run_optional "Remove game" emerge -C games-puzzle/swell-foop
+
+# Remove Gnome System Monitor as users should use Mission Control instead
+
+run_optional "Remove System Monitor" emerge -C gnome-extra/gnome-system-monitor
 
 echo ">>> LiveCD configuration complete"
