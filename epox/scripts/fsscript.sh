@@ -29,6 +29,7 @@ echo "app-arch/7zip rar" >> /etc/portage/package.use/7zip
 echo "app-arch/7zip unRAR" >> /etc/portage/package.license/7zip
 
 echo "app-admin/calamares ~amd64" >> /etc/portage/package.accept_keywords/calamares
+echo "games-util/game-device-udev-rules ~amd64" >> /etc/portage/package.accept_keywords/game-device-udev-rules
 echo ">=dev-libs/libpwquality-1.4.5-r3 python" >> /etc/portage/package.use/libpwquality
 echo ">=sys-boot/grub-2.14-r5 mount" >> /etc/portage/package.use/grub
 
@@ -38,6 +39,9 @@ echo "x11-drivers/nvidia-drivers NVIDIA-2025" >> /etc/portage/package.license/nv
 
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render,video livecd
+
+#  games-util/game-device-udev-rule - This does apply to the Steam Flatpak. It deals with udev rules. 
+
 
 echo ">>> Running emerge package installations..."
 emerge --quiet --getbinpkg --noreplace --backtrack=100 \
@@ -83,7 +87,7 @@ emerge --quiet --getbinpkg --noreplace --backtrack=100 \
   app-arch/zpaq \
   net-vpn/tailscale \
   dev-python/pip \
-  game-device-udev-rules \ # This does apply to the Steam Flatpak. It deals with udev rules. 
+  games-util/game-device-udev-rules \
   gnome-extra/gnome-shell-extension-gsconnect
 
 echo ">>> Configuring zram swap..."
@@ -480,5 +484,11 @@ run_optional "Remove game" emerge -C games-puzzle/swell-foop
 # Remove Gnome System Monitor as users should use Mission Control instead
 
 run_optional "Remove System Monitor" emerge -C gnome-extra/gnome-system-monitor
+
+# Tailscale cheatsheet for post-install
+# sudo tailscale set --operator=$USER
+# tailscale auth
+# tailscale set --ssh  
+
 
 echo ">>> LiveCD configuration complete"
