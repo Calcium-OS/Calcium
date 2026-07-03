@@ -470,10 +470,6 @@ run_optional "Remove game" emerge -C games-puzzle/gnome-taquin
 run_optional "Remove game" emerge -C games-board/iagno
 run_optional "Remove game" emerge -C games-puzzle/quadrapassel
 
-# Keep these games because chess is fun, and Mahjong is a Yakuza player's nightmare. I do not hold any foul feelings towards Shogi thought. Also known as, people may actually like these games.
-
-# emerge -C games-board/gnome-chess
-# emerge -C games-board/gnome-mahjongg
 
 run_optional "Remove game" emerge -C games-board/gnome-mines
 run_optional "Remove game" emerge -C games-arcade/gnome-nibbles
@@ -481,9 +477,20 @@ run_optional "Remove game" emerge -C games-puzzle/gnome-sudoku
 run_optional "Remove game" emerge -C games-puzzle/lightsoff
 run_optional "Remove game" emerge -C games-puzzle/swell-foop
 
+# Keep these games because chess is fun, and Mahjong is a Yakuza player's nightmare. I do not hold any foul feelings towards Shogi thought. Also known as, people may actually like these games.
+
+# emerge -C games-board/gnome-chess
+# emerge -C games-board/gnome-mahjongg
+
 # Remove Gnome System Monitor as users should use Mission Control instead
 
 run_optional "Remove System Monitor" emerge -C gnome-extra/gnome-system-monitor
+
+# Remove GNOME web because it is still not good enough with laggy perfomance, blury text, and no vertical tabs.
+
+run_optional "Remove GNOME Web" emerge -C www-client/epiphany
+
+
 
 # Tailscale cheatsheet for post-install
 # sudo tailscale set --operator=$USER
