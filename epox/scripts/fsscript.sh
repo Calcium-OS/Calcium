@@ -490,8 +490,11 @@ run_optional "Remove System Monitor" emerge -C gnome-extra/gnome-system-monitor
 
 run_optional "Remove GNOME Web" emerge -C www-client/epiphany
 
+# Add support for external drives in Steam, assuming you are mounting them in GNOME files
 
+flatpak override --user --filesystem=/run/media/ com.valvesoftware.Steam
 
+    
 # Tailscale cheatsheet for post-install
 # sudo tailscale set --operator=$USER
 # tailscale auth
