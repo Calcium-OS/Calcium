@@ -109,7 +109,7 @@ rc-update add sshd default
 rc-update add dhcpcd default
 rc-update add cronie default
 rc-update add tailscale default
-rc-update add NetworkManager default
+# NetworkManager does not exist on the server.
 
 # Verbose attempt to start Tailscale during the build for diagnostics
 echo ">>> Testing Tailscale service initialization..."
