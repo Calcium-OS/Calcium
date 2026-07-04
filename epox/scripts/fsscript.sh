@@ -42,6 +42,43 @@ id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage
 
 #  games-util/game-device-udev-rule - This does apply to the Steam Flatpak. It deals with udev rules. 
 
+# Mask unwanted packages
+
+MASK_DIR="/etc/portage/package.mask"
+MASK_FILE="${MASK_DIR}/custom-livecd-removals"
+
+echo ">>> Creating Portage package mask directory..."
+mkdir -p "$MASK_DIR"
+
+echo ">>> Writing package masks to ${MASK_FILE}..."
+cat > "$MASK_FILE" << 'EOF'
+# Masked during LiveCD customization to prevent re-installation
+# by meta-packages or dependency resolution
+
+# GNOME Games removed to save space
+games-puzzle/five-or-more
+games-puzzle/gnome-klotski
+games-puzzle/gnome-tetravex
+games-puzzle/hitori
+games-board/four-in-a-row
+games-arcade/gnome-robots
+games-puzzle/gnome-taquin
+games-board/iagno
+games-puzzle/quadrapassel
+games-board/gnome-mines
+games-arcade/gnome-nibbles
+games-puzzle/gnome-sudoku
+games-puzzle/lightsoff
+games-puzzle/swell-foop
+
+# System components replaced by modern alternatives
+gnome-extra/gnome-system-monitor
+www-client/epiphany
+gui-apps/gnome-console
+EOF
+
+echo ">>> Successfully masked uninstalled packages."
+
 
 echo ">>> Running emerge package installations..."
 emerge --quiet --getbinpkg --noreplace --backtrack=100 \
@@ -579,41 +616,6 @@ rm -rf /var/cache /home/livecd/var/cache 2>/dev/null || true
 rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
 find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
 rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
-
-# Remove GNOME games
-
-run_optional "Remove game" emerge -C games-puzzle/five-or-more
-run_optional "Remove game" emerge -C games-puzzle/gnome-klotski
-run_optional "Remove game" emerge -C games-puzzle/gnome-tetravex
-run_optional "Remove game" emerge -C games-puzzle/hitori
-run_optional "Remove game" emerge -C games-board/four-in-a-row
-run_optional "Remove game" emerge -C games-arcade/gnome-robots
-run_optional "Remove game" emerge -C games-puzzle/gnome-taquin
-run_optional "Remove game" emerge -C games-board/iagno
-run_optional "Remove game" emerge -C games-puzzle/quadrapassel
-
-run_optional "Remove game" emerge -C games-board/gnome-mines
-run_optional "Remove game" emerge -C games-arcade/gnome-nibbles
-run_optional "Remove game" emerge -C games-puzzle/gnome-sudoku
-run_optional "Remove game" emerge -C games-puzzle/lightsoff
-run_optional "Remove game" emerge -C games-puzzle/swell-foop
-
-# Keep these games because chess is fun, and Mahjong is a Yakuza player's nightmare. I do not hold any foul feelings towards Shogi thought. Also known as, people may actually like these games.
-
-# emerge -C games-board/gnome-chess
-# emerge -C games-board/gnome-mahjongg
-
-# Remove Gnome System Monitor as users should use Mission Control instead
-
-run_optional "Remove System Monitor" emerge -C gnome-extra/gnome-system-monitor
-
-# Remove GNOME web because it is still not good enough with laggy perfomance, blury text, and no vertical tabs.
-
-run_optional "Remove GNOME Web" emerge -C www-client/epiphany
-
-# Remove GNOME Console as Black Box is used instead
-
-run_optional "Remove GNOME Console"  emerge -C gui-apps/gnome-console
 
 # Tailscale cheatsheet for post-install
 # sudo tailscale set --operator=$USER
