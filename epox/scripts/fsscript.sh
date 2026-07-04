@@ -14,15 +14,19 @@ run_optional() {
 echo ">>> Installing packages for GNOME desktop..."
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask /etc/portage/package.license /etc/portage/profile
 
+# Added virtual/dist-kernel to allow the nvidia-driver dependencies to clear keywords
 printf '%s\n' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
+  'virtual/dist-kernel ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
   'x11-drivers/nvidia-drivers ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
+# Fixed comment syntax (# instead of ===) and added ngtcp2 flag to satisfy Samba
 printf '%s\n' \
-  '============ NOTE: Added global pambase adjustments here ============' \
+  '# Global adjustments for LiveCD components' \
   'sys-auth/pambase elogind gnome-keyring' \
+  'net-libs/ngtcp2 gnutls' \
   '>=gnome-base/gdm-9999 elogind' \
   '>=gnome-base/gnome-settings-daemon-9999 elogind' \
   > /etc/portage/package.use/gnome
@@ -73,7 +77,6 @@ EOF
 echo ">>> Successfully configured package exclusion layer."
 
 echo ">>> Running emerge package installations..."
-# NOTE: Added --update --deep --changed-use to resolve the pambase/elogind slot conflict dynamically
 emerge --quiet --getbinpkg --noreplace --backtrack=100 --update --deep --changed-use \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
