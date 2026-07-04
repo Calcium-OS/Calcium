@@ -88,6 +88,7 @@ emerge --quiet --getbinpkg --noreplace --backtrack=100 \
   net-vpn/tailscale \
   dev-python/pip \
   games-util/game-device-udev-rules \
+  dev-util/github-cli \
   gnome-extra/gnome-shell-extension-gsconnect
 
 echo ">>> Configuring zram swap..."
@@ -128,7 +129,6 @@ printf '%s\n' \
   org.torproject.torbrowser-launcher \
   dev.zed.Zed \
   com.heroicgameslauncher.hgl \
-  io.github.streetpea.Chiaki4deck \
   io.github.kolunmi.Bazaar \
   io.gitlab.librewolf-community \
   com.github.Matoking.protontricks | \
@@ -190,64 +190,59 @@ system-db:local
 DCONFPROF
 run_optional "dconf engine profile update" dconf update
 
-get_latest_appimage() {
-  repo="$1"
-
-  wget -q -O- "https://api.github.com/repos/$repo/releases/latest" \
-  | grep -oE '"browser_download_url":[^,]+' \
-  | cut -d'"' -f4 \
-  | grep -i "AppImage" \
-  | head -n 1
-}
 
 echo ">>> Installing Sunshine..."
-
-SUNSHINE_URL=$(get_latest_appimage "LizardByte/Sunshine")
-
-if [ -n "$SUNSHINE_URL" ]; then
-  mkdir -p /opt/sunshine
-  wget -q -O /opt/sunshine/sunshine.AppImage "$SUNSHINE_URL"
-  chmod +x /opt/sunshine/sunshine.AppImage
-else
-  echo "(Sunshine URL not found)"
-fi
-
+mkdir -p /opt/sunshine
+curl -s https://api.github.com/repos/LizardByte/Sunshine/releases/latest \
+| grep browser_download_url \
+| grep -i "AppImage" \
+| cut -d '"' -f 4 \
+| head -n 1 \
+| wget -O /opt/sunshine/sunshine.AppImage -i - || echo "(Sunshine installation failed)"
+[ -f /opt/sunshine/sunshine.AppImage ] && chmod +x /opt/sunshine/sunshine.AppImage
 
 echo ">>> Installing Wine..."
-
-WINE_URL=$(get_latest_appimage "mmtrt/WINE_AppImage")
-
-if [ -n "$WINE_URL" ]; then
-  mkdir -p /opt/wine
-  wget -q -O /opt/wine/wine.AppImage "$WINE_URL"
-  chmod +x /opt/wine/wine.AppImage
-else
-  echo "(Wine AppImage URL not found)"
-fi
+mkdir -p /opt/wine
+curl -s https://api.github.com/repos/mmtrt/WINE_AppImage/releases/latest \
+| grep browser_download_url \
+| grep -i "AppImage" \
+| cut -d '"' -f 4 \
+| head -n 1 \
+| wget -O /opt/wine/wine.AppImage -i - || echo "(Wine installation failed)"
+[ -f /opt/wine/wine.AppImage ] && chmod +x /opt/wine/wine.AppImage
 
 echo ">>> Installing AppImageUpdate..."
-
-APPIMAGEUPDATE_URL=$(get_latest_appimage "AppImage/AppImageUpdate")
-
-if [ -n "$APPIMAGEUPDATE_URL" ]; then
-  wget -q -O /usr/local/bin/AppImageUpdate "$APPIMAGEUPDATE_URL"
-  chmod +x /usr/local/bin/AppImageUpdate
-else
-  echo "(AppImageUpdate URL not found)"
+mkdir -p /opt/AppImageUpdate
+curl -s https://api.github.com/repos/AppImage/AppImageUpdate/releases/latest \
+| grep browser_download_url \
+| grep -i "AppImage" \
+| cut -d '"' -f 4 \
+| head -n 1 \
+| wget -O /opt/AppImageUpdate/AppImageUpdate.AppImage -i - || echo "(AppImageUpdate installation failed)"
+if [ -f /opt/AppImageUpdate/AppImageUpdate.AppImage ]; then
+  chmod +x /opt/AppImageUpdate/AppImageUpdate.AppImage
+  ln -sf /opt/AppImageUpdate/AppImageUpdate.AppImage /usr/local/bin/AppImageUpdate
 fi
-
 
 echo ">>> Installing Waydroid..."
-WAYDROID_URL=$(wget -q -O- \
-  https://api.github.com/repos/pkgforge-dev/Waydroid-AppImage/releases/latest \
-  | grep -oE 'https://[^"]+AppImage' | head -1)
-if [ -n "$WAYDROID_URL" ]; then
-  mkdir -p /opt/waydroid
-  wget -q -O /opt/waydroid/Waydroid.AppImage "$WAYDROID_URL"
-  chmod +x /opt/waydroid/Waydroid.AppImage
-else
-  echo "Failed to find Waydroid AppImage URL"
-fi
+mkdir -p /opt/waydroid
+curl -s https://api.github.com/repos/pkgforge-dev/Waydroid-AppImage/releases/latest \
+| grep browser_download_url \
+| grep -i "AppImage" \
+| cut -d '"' -f 4 \
+| head -n 1 \
+| wget -O /opt/waydroid/Waydroid.AppImage -i - || echo "(Waydroid installation failed)"
+[ -f /opt/waydroid/Waydroid.AppImage ] && chmod +x /opt/waydroid/Waydroid.AppImage
+
+echo ">>> Installing chiaki-ng..."
+mkdir -p /opt/chiaki-ng
+curl -s https://api.github.com/repos/streetpea/chiaki-ng/releases/latest \
+| grep browser_download_url \
+| grep x86_64 \
+| grep AppImage \
+| cut -d '"' -f 4 \
+| wget -O /opt/chiaki-ng/chiaki-ng-x86_64.AppImage -i - || echo "(chiaki-ng installation failed)"
+[ -f /opt/chiaki-ng/chiaki-ng-x86_64.AppImage ] && chmod +x /opt/chiaki-ng/chiaki-ng-x86_64.AppImage
 
 
 echo ">>> Setting up auto-update cron jobs..."
@@ -418,7 +413,7 @@ rc-update add NetworkManager boot 2>/dev/null || true
 echo ">>> Testing Tailscale service initialization..."
 if ! rc-service --verbose tailscale start; then
   echo ":: [INFO] Tailscale failed to start in the CI environment (this is expected in unprivileged chroots)." >&2
-  echo ":: [DIAGNOSTIC] Checking tailscale service status:" >&2
+  echo ":: [DIAGNOSTIC] Check tailscale service status:" >&2
   rc-service tailscale status || true
 fi
 
