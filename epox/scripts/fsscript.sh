@@ -497,5 +497,11 @@ run_optional "Remove GNOME Web" emerge -C www-client/epiphany
 # tailscale auth
 # tailscale set --ssh  
 
+# Show storage usage
+
+flatpak list --app --columns=name,size
+du -ax / | sort -rn > /var/tmp/du-root-$(date --iso).log
+
+# To do - Reduce file size of flatpaks, set mirror effect to 200MS.
 
 echo ">>> LiveCD configuration complete"
