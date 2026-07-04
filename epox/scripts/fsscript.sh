@@ -611,7 +611,9 @@ run_optional "Remove System Monitor" emerge -C gnome-extra/gnome-system-monitor
 
 run_optional "Remove GNOME Web" emerge -C www-client/epiphany
 
+# Remove GNOME Console as Black Box is used instead
 
+run_optional "Remove GNOME Console"  emerge -C gui-apps/gnome-console
 
 # Tailscale cheatsheet for post-install
 # sudo tailscale set --operator=$USER
