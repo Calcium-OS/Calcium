@@ -117,7 +117,6 @@ printf '%s\n' \
   com.vysp3r.ProtonPlus \
   com.valvesoftware.Steam \
   com.obsproject.Studio \
-  md.obsidian.Obsidian \
   com.github.tchx84.Flatseal \
   com.saivert.pwvucontrol \
   com.github.hluk.copyq \
@@ -128,7 +127,6 @@ printf '%s\n' \
   com.protonvpn.www \
   org.torproject.torbrowser-launcher \
   dev.zed.Zed \
-  com.heroicgameslauncher.hgl \
   io.github.kolunmi.Bazaar \
   io.gitlab.librewolf-community \
   com.github.Matoking.protontricks | \
@@ -191,59 +189,81 @@ DCONFPROF
 run_optional "dconf engine profile update" dconf update
 
 
-echo ">>> Installing Sunshine..."
-mkdir -p /opt/sunshine
+# Ensure user skeleton environment targets exist for AppImage installations
+LOCAL_BIN="/etc/skel/.local/bin"
+mkdir -p "$LOCAL_BIN"
+
+echo ">>> Installing Sunshine AppImage to skeleton environment..."
 curl -s https://api.github.com/repos/LizardByte/Sunshine/releases/latest \
 | grep browser_download_url \
 | grep -i "AppImage" \
 | cut -d '"' -f 4 \
 | head -n 1 \
-| wget -O /opt/sunshine/sunshine.AppImage -i - || echo "(Sunshine installation failed)"
-[ -f /opt/sunshine/sunshine.AppImage ] && chmod +x /opt/sunshine/sunshine.AppImage
+| wget -O "$LOCAL_BIN/sunshine.AppImage" -i - || echo "(Sunshine installation failed)"
+[ -f "$LOCAL_BIN/sunshine.AppImage" ] && chmod +x "$LOCAL_BIN/sunshine.AppImage"
 
-echo ">>> Installing Wine..."
-mkdir -p /opt/wine
+echo ">>> Installing Wine AppImage to skeleton environment..."
 curl -s https://api.github.com/repos/mmtrt/WINE_AppImage/releases/latest \
 | grep browser_download_url \
 | grep -i "AppImage" \
 | cut -d '"' -f 4 \
 | head -n 1 \
-| wget -O /opt/wine/wine.AppImage -i - || echo "(Wine installation failed)"
-[ -f /opt/wine/wine.AppImage ] && chmod +x /opt/wine/wine.AppImage
+| wget -O "$LOCAL_BIN/wine.AppImage" -i - || echo "(Wine installation failed)"
+[ -f "$LOCAL_BIN/wine.AppImage" ] && chmod +x "$LOCAL_BIN/wine.AppImage"
 
-echo ">>> Installing AppImageUpdate..."
-mkdir -p /opt/AppImageUpdate
+echo ">>> Installing AppImageUpdate to skeleton environment..."
 curl -s https://api.github.com/repos/AppImage/AppImageUpdate/releases/latest \
 | grep browser_download_url \
 | grep -i "AppImage" \
 | cut -d '"' -f 4 \
 | head -n 1 \
-| wget -O /opt/AppImageUpdate/AppImageUpdate.AppImage -i - || echo "(AppImageUpdate installation failed)"
-if [ -f /opt/AppImageUpdate/AppImageUpdate.AppImage ]; then
-  chmod +x /opt/AppImageUpdate/AppImageUpdate.AppImage
-  ln -sf /opt/AppImageUpdate/AppImageUpdate.AppImage /usr/local/bin/AppImageUpdate
-fi
+| wget -O "$LOCAL_BIN/AppImageUpdate.AppImage" -i - || echo "(AppImageUpdate installation failed)"
+[ -f "$LOCAL_BIN/AppImageUpdate.AppImage" ] && chmod +x "$LOCAL_BIN/AppImageUpdate.AppImage"
 
-echo ">>> Installing Waydroid..."
-mkdir -p /opt/waydroid
+echo ">>> Installing Waydroid AppImage to skeleton environment..."
 curl -s https://api.github.com/repos/pkgforge-dev/Waydroid-AppImage/releases/latest \
 | grep browser_download_url \
 | grep x86_64 \
 | grep AppImage \
 | cut -d '"' -f 4 \
 | head -n 1 \
-| wget -O /opt/waydroid/Waydroid.AppImage -i - || echo "(Waydroid installation failed)"
-[ -f /opt/waydroid/Waydroid.AppImage ] && chmod +x /opt/waydroid/Waydroid.AppImage
+| wget -O "$LOCAL_BIN/Waydroid.AppImage" -i - || echo "(Waydroid installation failed)"
+[ -f "$LOCAL_BIN/Waydroid.AppImage" ] && chmod +x "$LOCAL_BIN/Waydroid.AppImage"
 
-echo ">>> Installing chiaki-ng..."
-mkdir -p /opt/chiaki-ng
+echo ">>> Installing chiaki-ng AppImage to skeleton environment..."
 curl -s https://api.github.com/repos/streetpea/chiaki-ng/releases/latest \
 | grep browser_download_url \
 | grep x86_64 \
 | grep AppImage \
 | cut -d '"' -f 4 \
-| wget -O /opt/chiaki-ng/chiaki-ng-x86_64.AppImage -i - || echo "(chiaki-ng installation failed)"
-[ -f /opt/chiaki-ng/chiaki-ng-x86_64.AppImage ] && chmod +x /opt/chiaki-ng/chiaki-ng-x86_64.AppImage
+| wget -O "$LOCAL_BIN/chiaki-ng-x86_64.AppImage" -i - || echo "(chiaki-ng installation failed)"
+[ -f "$LOCAL_BIN/chiaki-ng-x86_64.AppImage" ] && chmod +x "$LOCAL_BIN/chiaki-ng-x86_64.AppImage"
+
+echo ">>> Installing Heroic Game Launcher AppImage to skeleton environment..."
+curl -s https://api.github.com/repos/Heroic-Games-Launcher/HeroicGamesLauncher/releases/latest \
+| grep browser_download_url \
+| grep x86_64 \
+| grep AppImage \
+| cut -d '"' -f 4 \
+| wget -O "$LOCAL_BIN/Heroic-x86_64.AppImage" -i - || echo "(Heroic Game Launcher installation failed)"
+[ -f "$LOCAL_BIN/Heroic-x86_64.AppImage" ] && chmod +x "$LOCAL_BIN/Heroic-x86_64.AppImage"
+
+echo ">>> Installing Obsidian AppImage to skeleton environment..."
+curl -s https://api.github.com/repos/obsidianmd/obsidian-releases/releases/latest \
+| grep browser_download_url \
+| grep -E "Obsidian-[0-9.]+.*\.AppImage$" \
+| grep -v -i "arm64" \
+| cut -d '"' -f 4 \
+| head -n 1 \
+| wget -O "$LOCAL_BIN/Obsidian.AppImage" -i - || echo "(Obsidian installation failed)"
+[ -f "$LOCAL_BIN/Obsidian.AppImage" ] && chmod +x "$LOCAL_BIN/Obsidian.AppImage"
+
+# Ensure already created user accounts copy these binary templates over cleanly
+if [ -d /home/livecd ]; then
+  mkdir -p /home/livecd/.local/bin
+  cp -a "$LOCAL_BIN"/. /home/livecd/.local/bin/
+  chown -R livecd:users /home/livecd/.local
+fi
 
 
 echo ">>> Setting up auto-update cron jobs..."
@@ -261,10 +281,116 @@ CRON
 chmod +x /etc/cron.weekly/calcium-update
 
 cat > /etc/cron.weekly/appimage-update <<'CRON'
-#!/bin/bash
-for img in /opt/*/squashfs-root/AppRun; do
-    [ -f "$img" ] && AppImageUpdate "$img" 2>/dev/null || true
+#!/usr/bin/env bash
+
+set -u
+set -o pipefail
+
+LOG="/var/log/appimage-update.log"
+LOCAL_BIN="/usr/local/bin"
+
+mkdir -p "$(dirname "$LOG")"
+exec >> "$LOG" 2>&1
+
+echo "=================================================="
+echo "AppImage update run: $(date)"
+echo "User: $(whoami)"
+echo "PATH: $PATH"
+
+ARCH="$(uname -m)"
+if [[ "$ARCH" != "x86_64" ]]; then
+  echo "ERROR: Only x86_64 supported (detected $ARCH)"
+  exit 1
+fi
+
+############################################
+# FORCE HEADLESS ENVIRONMENT (CRITICAL)
+############################################
+export DISPLAY=""
+export WAYLAND_DISPLAY=""
+export QT_QPA_PLATFORM=offscreen
+export APPIMAGE_EXTRACT_AND_RUN=1
+
+############################################
+# Ensure CLI updater exists
+############################################
+UPDATER="$LOCAL_BIN/appimageupdatetool"
+
+if [[ ! -x "$UPDATER" ]]; then
+  echo ">>> Installing CLI updater (appimageupdatetool)..."
+
+  TMP="$(mktemp -d)"
+  cd "$TMP" || exit 1
+
+  URL=$(
+    curl -s https://api.github.com/repos/AppImageCommunity/AppImageUpdate/releases/latest \
+    | grep browser_download_url \
+    | grep "appimageupdatetool-x86_64.AppImage" \
+    | cut -d '"' -f 4 \
+    | head -n 1
+  )
+
+  if [[ -z "$URL" ]]; then
+    echo "ERROR: failed to fetch CLI updater"
+    exit 1
+  fi
+
+  curl -L "$URL" -o appimageupdatetool.AppImage
+  chmod +x appimageupdatetool.AppImage
+  mv appimageupdatetool.AppImage "$UPDATER"
+
+  echo "Installed CLI updater -> $UPDATER"
+fi
+
+echo "Using CLI updater: $UPDATER"
+
+############################################
+# SAFE UPDATE FUNCTION (NO GUI GUARANTEE)
+############################################
+run_update() {
+  local img="$1"
+
+  [[ -f "$img" ]] || return
+
+  echo "Updating: $img"
+
+  # absolute no-GUI execution environment
+  DISPLAY="" WAYLAND_DISPLAY="" \
+  QT_QPA_PLATFORM=offscreen \
+  "$UPDATER" "$img" >> "$LOG" 2>&1
+
+  local status=$?
+
+  if [[ $status -ne 0 ]]; then
+    echo "FAIL ($status): $img"
+  fi
+}
+
+############################################
+# Scan system-wide
+############################################
+shopt -s nullglob globstar
+
+FOUND=0
+
+for img in \
+  /home/**/*.AppImage \
+  /root/**/*.AppImage \
+  /opt/**/*.AppImage \
+  /home/*/.local/bin/*.AppImage \
+  /home/*/.local/appimage/*.AppImage \
+  /home/*/.var/**/AppImage*; do
+
+  FOUND=1
+  run_update "$img"
 done
+
+if [[ $FOUND -eq 0 ]]; then
+  echo "WARNING: No AppImages found"
+fi
+
+echo "Done: $(date)"
+echo "=================================================="
 CRON
 chmod +x /etc/cron.weekly/appimage-update
 
@@ -382,7 +508,7 @@ if [ -f /etc/pam.d/system-auth ]; then
 fi
 
 # Append nullok safely to pam_unix modules to grant passwordless auth capability
-find /etc/pam.d/ -type f -exec sed -i 's/\(pam_unix\.so.*\)/\1 nullok/' {} + 2>/dev/null || true
+find /etc/pam.d/ /etc/pam.d/ -type f -exec sed -i 's/\(pam_unix\.so.*\)/\1 nullok/' {} + 2>/dev/null || true
 
 # Strip password fields completely to ensure authentic blank states
 passwd -d root || true
