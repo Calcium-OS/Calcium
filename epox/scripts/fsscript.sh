@@ -14,12 +14,13 @@ run_optional() {
 echo ">>> Installing packages for GNOME desktop..."
 mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask /etc/portage/package.license /etc/portage/profile
 
-# Added virtual/dist-kernel to allow the nvidia-driver dependencies to clear keywords
+# Keyword allowances for the kernel dependencies and tools
 printf '%s\n' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
   'virtual/dist-kernel ~amd64' \
   'sys-kernel/linux-firmware ~amd64' \
   'x11-drivers/nvidia-drivers ~amd64' \
+  'sys-fs/btrfs-progs ~amd64' \
   > /etc/portage/package.accept_keywords/gnome
 
 # Fixed comment syntax (# instead of ===) and added ngtcp2 flag to satisfy Samba
@@ -77,7 +78,9 @@ EOF
 echo ">>> Successfully configured package exclusion layer."
 
 echo ">>> Running emerge package installations..."
-emerge --quiet --getbinpkg --noreplace --backtrack=100 --update --deep --changed-use \
+# Added explicit upgrade context and --autounmask configuration flags to bypass slot traps cleanly
+emerge --quiet --getbinpkg --backtrack=100 --update --deep --changed-use --autounmask=y --autounmask-write=y \
+  sys-kernel/gentoo-kernel-bin \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
