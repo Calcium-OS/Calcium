@@ -78,8 +78,8 @@ EOF
 echo ">>> Successfully configured package exclusion layer."
 
 echo ">>> Running emerge package installations..."
-# Added explicit upgrade context and --autounmask configuration flags to bypass slot traps cleanly
-emerge --quiet --getbinpkg --backtrack=100 --update --deep --changed-use --autounmask=y --autounmask-write=y \
+# Changed --autounmask-write=y to --autounmask-continue=y so changes are applied instantly without halting the script
+emerge --quiet --getbinpkg --backtrack=100 --update --deep --changed-use --autounmask=y --autounmask-continue=y \
   sys-kernel/gentoo-kernel-bin \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
