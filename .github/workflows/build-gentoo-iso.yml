@@ -266,7 +266,7 @@ jobs:
           echo "::group::Cleaning up & Creating Tarball"
           echo "Creating final rootfs tarball..."
 
-          export XZ_OPT="-9e -T 0"
+          export XZ_OPT="-6 -T 0"  
 
           tar \
             --exclude=home/livecd \
