@@ -228,7 +228,8 @@ echo ">>> Installing Waydroid..."
 mkdir -p /opt/waydroid
 curl -s https://api.github.com/repos/pkgforge-dev/Waydroid-AppImage/releases/latest \
 | grep browser_download_url \
-| grep -i "AppImage" \
+| grep x86_64 \
+| grep AppImage \
 | cut -d '"' -f 4 \
 | head -n 1 \
 | wget -O /opt/waydroid/Waydroid.AppImage -i - || echo "(Waydroid installation failed)"
@@ -464,7 +465,6 @@ run_optional "Remove game" emerge -C games-arcade/gnome-robots
 run_optional "Remove game" emerge -C games-puzzle/gnome-taquin
 run_optional "Remove game" emerge -C games-board/iagno
 run_optional "Remove game" emerge -C games-puzzle/quadrapassel
-
 
 run_optional "Remove game" emerge -C games-board/gnome-mines
 run_optional "Remove game" emerge -C games-arcade/gnome-nibbles
