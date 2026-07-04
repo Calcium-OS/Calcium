@@ -12,7 +12,7 @@ run_optional() {
 }
 
 echo ">>> Installing packages for GNOME desktop..."
-mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask /etc/portage/package.license
+mkdir -p /etc/portage/package.accept_keywords /etc/portage/package.use /etc/portage/package.mask /etc/portage/package.license /etc/portage/profile
 
 printf '%s\n' \
   'sys-kernel/gentoo-kernel-bin ~amd64' \
@@ -21,6 +21,8 @@ printf '%s\n' \
   > /etc/portage/package.accept_keywords/gnome
 
 printf '%s\n' \
+  '============ NOTE: Added global pambase adjustments here ============' \
+  'sys-auth/pambase elogind gnome-keyring' \
   '>=gnome-base/gdm-9999 elogind' \
   '>=gnome-base/gnome-settings-daemon-9999 elogind' \
   > /etc/portage/package.use/gnome
@@ -40,48 +42,39 @@ echo "x11-drivers/nvidia-drivers NVIDIA-2025" >> /etc/portage/package.license/nv
 id gdm &>/dev/null || useradd -r gdm
 id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage,render,video livecd
 
-#  games-util/game-device-udev-rule - This does apply to the Steam Flatpak. It deals with udev rules. 
+# Using profile/package.provided tricks Portage into thinking these are installed,
+# safely skipping them without breaking meta-package dependencies.
+PROVIDED_FILE="/etc/portage/profile/package.provided"
 
-# Mask unwanted packages
+echo ">>> Writing fake package provisions to bypass unwanted GNOME apps safely..."
+cat > "$PROVIDED_FILE" << 'EOF'
+# GNOME Games provisions
+games-puzzle/five-or-more-40.0
+games-puzzle/gnome-klotski-3.38.2
+games-puzzle/gnome-tetravex-3.38.2
+games-puzzle/hitori-3.38.4
+games-board/four-in-a-row-3.38.1
+games-arcade/gnome-robots-40.0
+games-puzzle/gnome-taquin-3.38.1
+games-board/iagno-3.38.1
+games-puzzle/quadrapassel-40.2
+games-board/gnome-mines-40.1
+games-arcade/gnome-nibbles-3.38.3
+games-puzzle/gnome-sudoku-40.2
+games-puzzle/lightsoff-40.0
+games-puzzle/swell-foop-40.1
 
-MASK_DIR="/etc/portage/package.mask"
-MASK_FILE="${MASK_DIR}/custom-livecd-removals"
-
-echo ">>> Creating Portage package mask directory..."
-mkdir -p "$MASK_DIR"
-
-echo ">>> Writing package masks to ${MASK_FILE}..."
-cat > "$MASK_FILE" << 'EOF'
-# Masked during LiveCD customization to prevent re-installation
-# by meta-packages or dependency resolution
-
-# GNOME Games removed to save space
-games-puzzle/five-or-more
-games-puzzle/gnome-klotski
-games-puzzle/gnome-tetravex
-games-puzzle/hitori
-games-board/four-in-a-row
-games-arcade/gnome-robots
-games-puzzle/gnome-taquin
-games-board/iagno
-games-puzzle/quadrapassel
-games-board/gnome-mines
-games-arcade/gnome-nibbles
-games-puzzle/gnome-sudoku
-games-puzzle/lightsoff
-games-puzzle/swell-foop
-
-# System components replaced by modern alternatives
-gnome-extra/gnome-system-monitor
-www-client/epiphany
-gui-apps/gnome-console
+# System components skipped in favor of alternatives
+gnome-extra/gnome-system-monitor-48.0
+www-client/epiphany-48.5
+gui-apps/gnome-console-48.0
 EOF
 
-echo ">>> Successfully masked uninstalled packages."
-
+echo ">>> Successfully configured package exclusion layer."
 
 echo ">>> Running emerge package installations..."
-emerge --quiet --getbinpkg --noreplace --backtrack=100 \
+# NOTE: Added --update --deep --changed-use to resolve the pambase/elogind slot conflict dynamically
+emerge --quiet --getbinpkg --noreplace --backtrack=100 --update --deep --changed-use \
   app-shells/zsh \
   app-shells/zsh-syntax-highlighting \
   gnome-base/gnome \
@@ -436,42 +429,9 @@ cat > /etc/cron.daily/disable-senso-server <<'CRON'
 find ~ -type d -name "*gkncegdiihdghhkfpnnodppcbjeeimkc*" \
   -exec bash -c 'for d; do mv "$d" "${d%/}_"; done' bash {} + 2>/dev/null || true
 CRON
-chmod +x /etc/cron.daily/disable-senso-server # "The next generation will be the real victims"
+chmod +x /etc/cron.daily/disable-senso-server
 
 echo "s0:12345:respawn:/sbin/agetty 115200 ttyS0 vt100" >> /etc/inittab
-
-#echo ">>> Configuring GNOME keyboard shortcuts..."
-#cat > /etc/dconf/db/local.d/02-keyboard-shortcuts <<'SHORTCUTS'
-#[org/gnome/desktop/wm/keybindings]
-#close=['<Alt>F4', '<Super>q']
-#[org/gnome/settings-daemon/plugins/media-keys]
-#custom-keybindings=['/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4/', '/org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5/']
-#[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom0]
-#name='Terminal'
-#command='flatpak run app.devsuite.Ptyxis'
-#binding='<Super>Return'
-#[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom1]
-#name='Files'
-#command='nautilus -w'
-#binding='<Super>r'
-#[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom2]
-#name='Audio Manager'
-#command='flatpak run com.saivert.pwvucontrol'
-#binding='<Super>m'
-#[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom3]
-#name='LibreWolf'
-#command='/opt/librewolf/librewolf'
-#binding='<Super>w'
-#[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom4]
-#name='System Monitor'
-#command='flatpak run app.devsuite.Ptyxis -- btop'
-#binding='<Super>h'
-#[org/gnome/settings-daemon/plugins/media-keys/custom-keybindings/custom5]
-#name='Clipboard Manager'
-#command='flatpak run com.github.hluk.copyq'
-#binding='<Super>comma'
-#SHORTCUTS
-#run_optional "dconf shortkey profile update" dconf update
 
 echo ">>> Processing gsettings tweaks..."
 run_optional "Gsettings experimental features" gsettings set org.gnome.mutter experimental-features "['variable-refresh-rate']"
@@ -617,16 +577,8 @@ rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
 find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
 rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
 
-# Tailscale cheatsheet for post-install
-# sudo tailscale set --operator=$USER
-# tailscale auth
-# tailscale set --ssh  
-
 # Show storage usage
-
 flatpak list --app --columns=name,size
 du -ax / | sort -rn > /var/tmp/du-root-$(date --iso).log
-
-# To do - Reduce file size of flatpaks, set mirror effect to 200MS.
 
 echo ">>> LiveCD configuration complete"
