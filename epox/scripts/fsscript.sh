@@ -124,7 +124,6 @@ emerge --quiet --getbinpkg --backtrack=100 --update --deep --changed-use --autou
   net-vpn/tailscale \
   dev-python/pip \
   games-util/game-device-udev-rules \
-  dev-util/github-cli \
   gnome-extra/gnome-shell-extension-gsconnect
 
 echo ">>> Configuring zram swap..."
