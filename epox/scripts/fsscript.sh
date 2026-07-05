@@ -35,7 +35,7 @@ printf '%s\n' \
 echo "app-arch/7zip rar" >> /etc/portage/package.use/7zip
 echo "app-arch/7zip unRAR" >> /etc/portage/package.license/7zip
 
-echo "app-admin/calamares ~amd64" >> /etc/portage/package.accept_keywords/calamares
+# echo "app-admin/calamares ~amd64" >> /etc/portage/package.accept_keywords/calamares
 echo "games-util/game-device-udev-rules ~amd64" >> /etc/portage/package.accept_keywords/game-device-udev-rules
 echo ">=dev-libs/libpwquality-1.4.5-r3 python" >> /etc/portage/package.use/libpwquality
 echo ">=sys-boot/grub-2.14-r5 mount" >> /etc/portage/package.use/grub
@@ -79,6 +79,7 @@ echo ">>> Successfully configured package exclusion layer."
 
 echo ">>> Running emerge package installations..."
 # Changed --autounmask-write=y to --autounmask-continue=y so changes are applied instantly without halting the script
+# No installer yet. I want a GTK replacment to app-admin/calamares
 emerge --quiet --getbinpkg --backtrack=100 --update --deep --changed-use --autounmask=y --autounmask-continue=y \
   sys-kernel/gentoo-kernel-bin \
   app-shells/zsh \
@@ -118,7 +119,6 @@ emerge --quiet --getbinpkg --backtrack=100 --update --deep --changed-use --autou
   dev-python/pygobject \
   media-libs/gsound \
   sys-boot/grub \
-  app-admin/calamares \
   app-arch/7zip \
   app-arch/zpaq \
   net-vpn/tailscale \
