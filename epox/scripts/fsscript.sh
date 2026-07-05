@@ -165,6 +165,7 @@ printf '%s\n' \
   dev.zed.Zed \
   io.github.kolunmi.Bazaar \
   io.gitlab.librewolf-community \
+  it.mijorus.gearlever \
   com.github.Matoking.protontricks | \
   xargs -P 3 -I{} sh -c 'flatpak install --system -y --noninteractive flathub "$1" || echo "(flatpak install of $1 failed)"' -- {}
 
@@ -247,15 +248,6 @@ curl -s https://api.github.com/repos/mmtrt/WINE_AppImage/releases/latest \
 | wget -O "$LOCAL_BIN/wine.AppImage" -i - || echo "(Wine installation failed)"
 [ -f "$LOCAL_BIN/wine.AppImage" ] && chmod +x "$LOCAL_BIN/wine.AppImage"
 
-echo ">>> Installing AppImageUpdate to skeleton environment..."
-curl -s https://api.github.com/repos/AppImage/AppImageUpdate/releases/latest \
-| grep browser_download_url \
-| grep -i "AppImage" \
-| cut -d '"' -f 4 \
-| head -n 1 \
-| wget -O "$LOCAL_BIN/AppImageUpdate.AppImage" -i - || echo "(AppImageUpdate installation failed)"
-[ -f "$LOCAL_BIN/AppImageUpdate.AppImage" ] && chmod +x "$LOCAL_BIN/AppImageUpdate.AppImage"
-
 echo ">>> Installing Waydroid AppImage to skeleton environment..."
 curl -s https://api.github.com/repos/pkgforge-dev/Waydroid-AppImage/releases/latest \
 | grep browser_download_url \
@@ -301,6 +293,17 @@ if [ -d /home/livecd ]; then
   chown -R livecd:users /home/livecd/.local
 fi
 
+# Create a first-boot initialization script to let Gear Lever integrate them smoothly on login
+mkdir -p /etc/skel/.config/autostart
+cat > /etc/skel/.config/autostart/gearlever-init.desktop <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Gear Lever Integration
+Exec=bash -c 'sleep 3; for img in "$HOME"/.local/bin/*.AppImage; do [ -f "$img" ] && flatpak run it.mijorus.gearlever --integrate "$img"; done; rm -f "$HOME"/.config/autostart/gearlever-init.desktop'
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+EOF
+
 
 echo ">>> Setting up auto-update cron jobs..."
 mkdir -p /etc/cron.daily /etc/cron.weekly
@@ -322,108 +325,34 @@ cat > /etc/cron.weekly/appimage-update <<'CRON'
 set -u
 set -o pipefail
 
-LOG="/var/log/appimage-update.log"
-LOCAL_BIN="/usr/local/bin"
-
+LOG="/var/log/gearlever-update.log"
 mkdir -p "$(dirname "$LOG")"
 exec >> "$LOG" 2>&1
 
 echo "=================================================="
-echo "AppImage update run: $(date)"
-echo "User: $(whoami)"
-echo "PATH: $PATH"
+echo "Gear Lever Weekly AppImage Update: $(date)"
 
-ARCH="$(uname -m)"
-if [[ "$ARCH" != "x86_64" ]]; then
-  echo "ERROR: Only x86_64 supported (detected $ARCH)"
-  exit 1
-fi
-
-############################################
-# FORCE HEADLESS ENVIRONMENT (CRITICAL)
-############################################
-export DISPLAY=""
-export WAYLAND_DISPLAY=""
-export QT_QPA_PLATFORM=offscreen
-export APPIMAGE_EXTRACT_AND_RUN=1
-
-############################################
-# Ensure CLI updater exists
-############################################
-UPDATER="$LOCAL_BIN/appimageupdatetool"
-
-if [[ ! -x "$UPDATER" ]]; then
-  echo ">>> Installing CLI updater (appimageupdatetool)..."
-
-  TMP="$(mktemp -d)"
-  cd "$TMP" || exit 1
-
-  URL=$(
-    curl -s https://api.github.com/repos/AppImageCommunity/AppImageUpdate/releases/latest \
-    | grep browser_download_url \
-    | grep "appimageupdatetool-x86_64.AppImage" \
-    | cut -d '"' -f 4 \
-    | head -n 1
-  )
-
-  if [[ -z "$URL" ]]; then
-    echo "ERROR: failed to fetch CLI updater"
-    exit 1
+# Loop through human users who have a .local folder
+for user_dir in /home/*; do
+  [ -d "$user_dir" ] || continue
+  username=$(basename "$user_dir")
+  
+  # Check if this user has integrated apps through Gear Lever
+  if su - "$username" -c "flatpak run it.mijorus.gearlever --list-installed" &>/dev/null; then
+    echo "Processing updates for user: $username"
+    
+    # Trigger background updates via Gear Lever
+    su - "$username" -c "flatpak run it.mijorus.gearlever --fetch-updates"
+    
+    # Run updates directly for matching AppImages
+    for img in "$user_dir"/.local/bin/*.AppImage; do
+      if [ -f "$img" ]; then
+        echo "Checking updates for: $(basename "$img")"
+        su - "$username" -c "flatpak run it.mijorus.gearlever --update \"$img\""
+      fi
+    done
   fi
-
-  curl -L "$URL" -o appimageupdatetool.AppImage
-  chmod +x appimageupdatetool.AppImage
-  mv appimageupdatetool.AppImage "$UPDATER"
-
-  echo "Installed CLI updater -> $UPDATER"
-fi
-
-echo "Using CLI updater: $UPDATER"
-
-############################################
-# SAFE UPDATE FUNCTION (NO GUI GUARANTEE)
-############################################
-run_update() {
-  local img="$1"
-
-  [[ -f "$img" ]] || return
-
-  echo "Updating: $img"
-
-  # absolute no-GUI execution environment
-  DISPLAY="" WAYLAND_DISPLAY="" \
-  QT_QPA_PLATFORM=offscreen \
-  "$UPDATER" "$img" >> "$LOG" 2>&1
-
-  local status=$?
-
-  if [[ $status -ne 0 ]]; then
-    echo "FAIL ($status): $img"
-  fi
-}
-
-############################################
-# Scan system-wide
-############################################
-shopt -s nullglob globstar
-
-FOUND=0
-
-for img in \
-  /home/**/*.AppImage \
-  /root/**/*.AppImage \
-  /opt/**/*.AppImage \
-  /home/*/.local/bin/*.AppImage \
-  /home/*/.local/appimage/*.AppImage \
-  /home/*/.var/**/AppImage*; do
-
-  FOUND=1
-  run_update "$img"
 done
-
-if [[ $FOUND -eq 0 ]]; then
-  echo "WARNING: No AppImages found"
-fi
 
 echo "Done: $(date)"
 echo "=================================================="
@@ -583,8 +512,19 @@ rm -rf /var/lib/flatpak/repo/cache 2>/dev/null || true
 find /usr/share/locale -mindepth 1 -maxdepth 1 ! -name 'en*' ! -name 'locale.alias' -exec rm -rf {} + 2>/dev/null || true
 rm -rf /usr/share/gtk-doc /usr/share/info 2>/dev/null || true
 
-# Show storage usage
-flatpak list --app --columns=name,size
-du -ax / | sort -rn > /var/tmp/du-root-$(date --iso).log
+echo "=================================================="
+echo ">>> CI VISIBILITY: LIVE IMAGE STORAGE BREAKDOWN <<<"
+echo "=================================================="
 
+echo -e "\n[1/3] Filesystem Overview:"
+df -h /
+
+echo -e "\n[2/3] Installed Flatpak Application Sizes:"
+flatpak list --app --columns=name,size
+
+echo -e "\n[3/3] Top System Directory Sizes (Depth 2):"
+# Scan only relevant system paths, sort by human-readable sizes, and grab top 30 heaviest items
+du -hx --max-depth=2 /usr /var /opt /home /root 2>/dev/null | sort -h -r | head -n 30
+
+echo "=================================================="
 echo ">>> LiveCD configuration complete"
