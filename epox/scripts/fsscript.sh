@@ -51,6 +51,9 @@ id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage
 # safely skipping them without breaking meta-package dependencies.
 PROVIDED_FILE="/etc/portage/profile/package.provided"
 
+
+# www-client/epiphany-48.5, as much as I would want to not have this package, installing the binary of webkit-GTK does save time . GNOME accounts or a similar package seems to pull it.
+
 echo ">>> Writing fake package provisions to bypass unwanted GNOME apps safely..."
 cat > "$PROVIDED_FILE" << 'EOF'
 # GNOME Games provisions
@@ -71,7 +74,6 @@ games-puzzle/swell-foop-40.1
 
 # System components skipped in favor of alternatives
 gnome-extra/gnome-system-monitor-48.0
-www-client/epiphany-48.5
 gui-apps/gnome-console-48.0
 EOF
 
@@ -524,6 +526,8 @@ flatpak list --app --columns=name,size
 echo -e "\n[3/3] Top System Directory Sizes (Depth 2):"
 # Scan only relevant system paths, sort by human-readable sizes, and grab top 30 heaviest items
 du -hx --max-depth=2 /usr /var /opt /home /root 2>/dev/null | sort -h -r | head -n 30
+
+emerge -C www-client/epiphany
 
 echo "=================================================="
 echo ">>> LiveCD configuration complete"
