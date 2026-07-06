@@ -1,92 +1,40 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# [Patches GCC for a slight performance improment.](https://www.phoronix.com/news/GCC-x86-Generic-Mispredict)
 
-# To be ran after all packages are setup in the desktop build, but before installation.
+# This will not be needed in GCC 17, Gentoo currently uses ~GCC 15.
 
-
-
-# [GCC performance patch](https://www.phoronix.com/news/GCC-x86-Generic-Mispredict)
-
-OVERLAY="/var/db/repos/local"
-CATEGORY="sys-devel"
-PACKAGE="gcc"
-
-if [[ $EUID -ne 0 ]]; then
-    echo "Run this script as root."
-    exit 1
+if [ "$EUID" -ne 0 ]; then
+  echo "Error: Please run this script as root or with sudo." >&2
+  exit 1
 fi
 
-VERSION=$(portageq best_visible / ${CATEGORY}/${PACKAGE})
+PATCH_DIR="/etc/portage/patches/sys-devel/gcc"
+PATCH_FILE="${PATCH_DIR}/branch-mispredict.patch"
 
-if [[ -z "$VERSION" ]]; then
-    echo "Could not determine installed GCC version."
-    exit 1
-fi
+echo "Creating Portage patch directory..."
+mkdir -p "$PATCH_DIR"
 
-PV="${VERSION##*/}"
-
-echo "Using GCC package: $PV"
-
-mkdir -p "${OVERLAY}/${CATEGORY}/${PACKAGE}"
-
-echo "Copying ebuild..."
-cp -a "/var/db/repos/gentoo/${CATEGORY}/${PACKAGE}/." \
-      "${OVERLAY}/${CATEGORY}/${PACKAGE}/"
-
-mkdir -p "${OVERLAY}/${CATEGORY}/${PACKAGE}/files"
-
-PATCH="${OVERLAY}/${CATEGORY}/${PACKAGE}/files/generic-branch-mispredict.patch"
-
-cat > "$PATCH" <<'EOF'
-diff --git a/gcc/config/i386/x86-tune-costs.h b/gcc/config/i386/x86-tune-costs.h
-index cc9de64394e073cfe86b5c3d91b26aeb9434b8fd..bc3bb69434919d855a6a81e40cb93653cad3297b 100644
---- a/gcc/config/i386/x86-tune-costs.h
-+++ b/gcc/config/i386/x86-tune-costs.h
-@@ -4274,7 +4274,7 @@ struct processor_costs generic_cost = {
-   "16",                                        /* Func alignment.  */
-   4,                                   /* Small unroll limit.  */
-   2,                                   /* Small unroll factor.  */
--  COSTS_N_INSNS (2),                   /* Branch mispredict scale.  */
-+  COSTS_N_INSNS (2) + 3,               /* Branch mispredict scale.  */
- };
+echo "Writing final precision unified diff patch to ${PATCH_FILE}..."
+cat << 'EOF' > "$PATCH_FILE"
+--- a/gcc/config/i386/i386.cc
++++ b/gcc/config/i386/i386.cc
+@@ -25215,10 +25215,10 @@
+       unsigned cost = seq_cost (seq, true);
+ 
+       if (cost <= if_info->original_cost)
+        return true;
+ 
+-      return cost <= (if_info->max_seq_cost + COSTS_N_INSNS (2));
++      return cost <= (if_info->max_seq_cost + COSTS_N_INSNS (2) + 3);
+     }
+ 
+   return default_noce_conversion_profitable_p (seq, if_info);
+ }
 EOF
 
-EBUILD="${OVERLAY}/${CATEGORY}/${PACKAGE}/${PV}.ebuild"
+echo "Patch successfully matched to source layout."
+echo "Starting GCC rebuild..."
 
-if ! grep -q "generic-branch-mispredict.patch" "$EBUILD"; then
-    perl -0pi -e '
-        s/src_prepare\(\)\s*\{\n/src_prepare() {\n    eapply "${FILESDIR}"\/generic-branch-mispredict.patch\n/s
-    ' "$EBUILD"
-fi
-
-echo "Regenerating Manifest..."
-cd "${OVERLAY}/${CATEGORY}/${PACKAGE}"
-ebuild "${PV}.ebuild" manifest
-
-echo
-echo "Done."
-echo
-echo "To build:"
-echo "    emerge -1av ${CATEGORY}/${PACKAGE}"
+emerge -1av sys-devel/gcc
 
 
-# Increase shader cache size
-
-CONFIG_DIR="$HOME/.config/environment.d"
-CONFIG_FILE="$CONFIG_DIR/gaming.conf"
-
-# Create the directory if it doesn't exist
-mkdir -p "$CONFIG_DIR"
-
-# Write the configuration
-cat > "$CONFIG_FILE" <<'EOF'
-# enforce RADV vulkan implementation - Should be enabled by default
-# AMD_VULKAN_ICD=RADV
-
-__GL_SHADER_DISK_CACHE_SIZE=120000000000
-
-# Increase AMD's/Intel's? shader cache size to 12GB
-MESA_SHADER_CACHE_MAX_SIZE=120G
-EOF
-
-echo "Configuration written to: $CONFIG_FILE"
