@@ -52,7 +52,7 @@ id livecd &>/dev/null || useradd -m -G users,wheel,audio,video,cdrom,usb,portage
 PROVIDED_FILE="/etc/portage/profile/package.provided"
 
 
-# www-client/epiphany-48.5, as much as I would want to not have this package, installing the binary of webkit-GTK does save time . GNOME accounts or a similar package seems to pull it.
+# www-client/epiphany-48.5, as much as I would want to not have this package, installing the binary of webkit-GTK does save time . GNOME accounts or a similar package seems to pull it. This is why it is removed later. I get to have the benefits ot a speed up build, without having it installed later.
 
 echo ">>> Writing fake package provisions to bypass unwanted GNOME apps safely..."
 cat > "$PROVIDED_FILE" << 'EOF'
@@ -505,6 +505,10 @@ install esp4 /bin/false
 install esp6 /bin/false
 install rxrpc /bin/false
 EOF
+
+# Applying performance patches
+
+curl https://github.com/Calcium-OS/Calcium/raw/refs/heads/Internetperson-dev-patch-24/epox/scripts/patches.sh | bash
 
 echo ">>> Cleaning up to reduce ISO size..."
 rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
