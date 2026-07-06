@@ -1,0 +1,195 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <enum id="org.gnome.shell.extensions.medialine.icon-type">
+    <value value="0" nick="app-icon" />
+    <value value="1" nick="album-art" />
+    <value value="2" nick="playing-status" />
+    <value value="3" nick="custom-image" />
+  </enum>
+
+  <enum id="org.gnome.shell.extensions.medialine.panel-position">
+    <value value="0" nick="left" />
+    <value value="1" nick="center" />
+    <value value="2" nick="right" />
+  </enum>
+
+  <enum id="org.gnome.shell.extensions.medialine.click-action">
+    <value value="0" nick="nothing" />
+    <value value="1" nick="open-popup" />
+    <value value="2" nick="play-pause" />
+    <value value="3" nick="open-settings" />
+    <value value="4" nick="next-track" />
+    <value value="5" nick="previous-track" />
+    <value value="6" nick="volume-up" />
+    <value value="7" nick="volume-down" />
+    <value value="8" nick="raise-player" />
+  </enum>
+
+  <enum id="org.gnome.shell.extensions.medialine.popup-compact-expand-mode">
+    <value value="0" nick="off" />
+    <value value="1" nick="hover" />
+    <value value="2" nick="click" />
+  </enum>
+
+  <schema id="org.gnome.shell.extensions.medialine"
+    path="/org/gnome/shell/extensions/medialine/">
+
+    <key name="icon-type" enum="org.gnome.shell.extensions.medialine.icon-type">
+      <default>'album-art'</default>
+      <summary>Icon source</summary>
+      <description>Show album art thumbnail or the media player app icon</description>
+    </key>
+
+    <key name="icon-size" type="i">
+      <default>16</default>
+      <range min="8" max="64" />
+      <summary>Icon size in pixels</summary>
+    </key>
+
+    <key name="custom-icon-path" type="s">
+      <default>''</default>
+      <summary>Custom icon image file path</summary>
+      <description>Path to a custom PNG or SVG image to use as the icon</description>
+    </key>
+
+    <key name="separator" type="s">
+      <default>' • '</default>
+      <summary>Separator between title, artist, and album</summary>
+    </key>
+
+    <key name="icon-spacing" type="i">
+      <default>6</default>
+      <range min="0" max="32" />
+      <summary>Spacing between icon and text in pixels</summary>
+    </key>
+
+    <key name="panel-position" enum="org.gnome.shell.extensions.medialine.panel-position">
+      <default>'right'</default>
+      <summary>Panel position</summary>
+      <description>Which section of the top bar to place the indicator</description>
+    </key>
+
+    <key name="panel-index" type="i">
+      <default>0</default>
+      <range min="0" max="20" />
+      <summary>Position index within the panel section</summary>
+    </key>
+
+    <key name="hide-default-notification" type="b">
+      <default>false</default>
+      <summary>Hide default GNOME media notification</summary>
+      <description>Suppress the default media notification that appears in the system notification
+        center</description>
+    </key>
+
+    <key name="show-title" type="b">
+      <default>true</default>
+      <summary>Show track title</summary>
+    </key>
+
+    <key name="show-artist" type="b">
+      <default>true</default>
+      <summary>Show artist name</summary>
+    </key>
+
+    <key name="show-album" type="b">
+      <default>false</default>
+      <summary>Show album name</summary>
+    </key>
+
+    <key name="max-text-width" type="i">
+      <default>300</default>
+      <range min="0" max="1000" />
+      <summary>Maximum text width in pixels (0 = unlimited)</summary>
+    </key>
+
+    <key name="left-click-action" enum="org.gnome.shell.extensions.medialine.click-action">
+      <default>'open-popup'</default>
+      <summary>Left click action</summary>
+    </key>
+
+    <key name="middle-click-action" enum="org.gnome.shell.extensions.medialine.click-action">
+      <default>'play-pause'</default>
+      <summary>Middle click action</summary>
+    </key>
+
+    <key name="right-click-action" enum="org.gnome.shell.extensions.medialine.click-action">
+      <default>'raise-player'</default>
+      <summary>Right click action</summary>
+    </key>
+
+    <key name="scroll-up-action" enum="org.gnome.shell.extensions.medialine.click-action">
+      <default>'volume-up'</default>
+      <summary>Scroll up action</summary>
+    </key>
+
+    <key name="scroll-down-action" enum="org.gnome.shell.extensions.medialine.click-action">
+      <default>'volume-down'</default>
+      <summary>Scroll down action</summary>
+    </key>
+
+    <key name="popup-primary-color" type="s">
+      <default>'#FFFFFF'</default>
+      <summary>Popup primary color</summary>
+      <description>Primary color for popup text and controls</description>
+    </key>
+
+    <key name="popup-secondary-color" type="s">
+      <default>'#888888'</default>
+      <summary>Popup secondary color</summary>
+      <description>Secondary color for popup backgrounds and accents</description>
+    </key>
+
+    <key name="popup-background-color" type="s">
+      <default>''</default>
+      <summary>Popup background color</summary>
+      <description>Custom background color for the popup. Leave empty to use the GNOME Shell theme default.</description>
+    </key>
+
+    <key name="popup-show-app-icon" type="b">
+      <default>true</default>
+      <summary>Show source app icon on album art</summary>
+      <description>Show the media player app icon badge on the album art thumbnail in the popup</description>
+    </key>
+
+    <key name="popup-dynamic-bg" type="b">
+      <default>false</default>
+      <summary>Dynamic background from album art</summary>
+      <description>Extract the dominant color from album art and use it as the popup background</description>
+    </key>
+
+    <key name="popup-dynamic-bg-intensity" type="d">
+      <default>0.5</default>
+      <range min="0.0" max="1.0"/>
+      <summary>Dynamic background intensity</summary>
+      <description>Controls how bright or dark the dynamic background appears. Lower values are darker, higher values are brighter.</description>
+    </key>
+
+    <key name="popup-show-visualizer" type="b">
+      <default>false</default>
+      <summary>Show music visualizer</summary>
+      <description>Show animated bars next to the track info that react to playback. Bars become dots when paused.</description>
+    </key>
+
+    <key name="popup-compact-expand-mode"
+      enum="org.gnome.shell.extensions.medialine.popup-compact-expand-mode">
+      <default>'off'</default>
+      <summary>Expand compact layout on</summary>
+      <description>Choose whether multi-source compact rows expand on hover, click, or stay compact.</description>
+    </key>
+
+    <key name="enhanced-pwa-support" type="b">
+      <default>true</default>
+      <summary>Enhanced PWA support</summary>
+      <description>When enabled, use advanced detection to find the correct PWA window for app icons. When disabled, use the app icon as reported by MPRIS.</description>
+    </key>
+
+    <key name="art-cache-size-mb" type="i">
+      <default>50</default>
+      <range min="5" max="2000" />
+      <summary>Album art cache size in megabytes</summary>
+      <description>Maximum disk space used to cache downloaded album art. When the limit is hit, the least recently used art is removed.</description>
+    </key>
+
+  </schema>
+</schemalist>
