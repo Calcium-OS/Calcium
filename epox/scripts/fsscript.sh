@@ -211,7 +211,7 @@ fi
 mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
 [org/gnome/shell]
-enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'drive-menu@gnome-shell-extensions.gcampax.github.com']
+enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'medialine@funinkina.co.in' 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'drive-menu@gnome-shell-extensions.gcampax.github.com']
 favorite-apps=['io.gitlab.librewolf-community.desktop', 'org.gnome.Nautilus.desktop']
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
@@ -337,14 +337,14 @@ echo "Gear Lever Weekly AppImage Update: $(date)"
 for user_dir in /home/*; do
   [ -d "$user_dir" ] || continue
   username=$(basename "$user_dir")
-  
+
   # Check if this user has integrated apps through Gear Lever
   if su - "$username" -c "flatpak run it.mijorus.gearlever --list-installed" &>/dev/null; then
     echo "Processing updates for user: $username"
-    
+
     # Trigger background updates via Gear Lever
     su - "$username" -c "flatpak run it.mijorus.gearlever --fetch-updates"
-    
+
     # Run updates directly for matching AppImages
     for img in "$user_dir"/.local/bin/*.AppImage; do
       if [ -f "$img" ]; then

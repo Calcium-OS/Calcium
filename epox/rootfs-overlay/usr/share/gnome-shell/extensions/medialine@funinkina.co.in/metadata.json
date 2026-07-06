@@ -1,0 +1,19 @@
+{
+  "name": "Medialine",
+  "description": "Shows currently playing media in the top bar in a minimal elegant way.",
+  "uuid": "medialine@funinkina.co.in",
+  "url": "https://github.com/funinkina/medialine",
+  "donations": {
+    "buymeacoffee": "funinkina"
+  },
+  "settings-schema": "org.gnome.shell.extensions.medialine",
+  "gettext-domain": "medialine@funinkina.co.in",
+  "shell-version": [
+    "46",
+    "47",
+    "48",
+    "49",
+    "50"
+  ],
+  "version": 10
+}
