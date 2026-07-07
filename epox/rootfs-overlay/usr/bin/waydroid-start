@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# To DO - Disable onscreen keyboard by default, add title bar to to window, change launcher?
+# To DO - Disable onscreen keyboard by default, add title bar to to window, prompt for Google Play certification, change launcher?
 
 set -e
 
