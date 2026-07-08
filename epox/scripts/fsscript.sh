@@ -510,6 +510,14 @@ EOF
 
 curl https://github.com/Calcium-OS/Calcium/raw/refs/heads/Internetperson-dev-patch-24/epox/scripts/patches.sh | bash
 
+
+# Enable Tailscale SSH
+
+chmod +x /etc/init.d/tailscale-ssh
+rc-update add tailscale-ssh default
+rc-service tailscale-ssh start
+
+
 echo ">>> Cleaning up to reduce ISO size..."
 rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
 rm -rf /var/cache /home/livecd/var/cache 2>/dev/null || true
