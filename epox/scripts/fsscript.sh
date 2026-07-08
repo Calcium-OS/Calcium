@@ -510,6 +510,28 @@ EOF
 
 curl https://github.com/Calcium-OS/Calcium/raw/refs/heads/Internetperson-dev-patch-24/epox/scripts/patches.sh | bash
 
+# Autostart Sunshine
+
+USER_HOME=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
+USER_NAME="${SUDO_USER:-$USER}"
+
+mkdir -p "$USER_HOME/.config/autostart"
+
+cat > "$USER_HOME/.config/autostart/sunshine.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Sunshine
+Comment=GameStream host for Moonlight
+Exec=/opt/sunshine/sunshine
+Icon=sunshine
+Categories=Network;
+Terminal=false
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
+EOF
+
+chown "$USER_NAME:$USER_NAME" "$USER_HOME/.config/autostart/sunshine.desktop"
+
 echo ">>> Cleaning up to reduce ISO size..."
 rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
 rm -rf /var/cache /home/livecd/var/cache 2>/dev/null || true
