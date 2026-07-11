@@ -4,3 +4,5 @@
 - The user should get a desktop, stema big picture, and ones for virutal desktop that are in full screen for the Moonlight client
 
   (Resources https://gist.github.com/iamthenuggetman/6d0884954653940596d463a48b2f459c  https://gist.github.com/Dregu/4c0dbb2582835e5d95e06c4bf7624e3b ) 
+
+- ProtonGE should be automatically installed after the desktop is installed in the steam flatpak, also set Steam Flatpak for LSFK flags, Upscaler auto update, 
