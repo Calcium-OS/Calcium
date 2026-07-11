@@ -58,3 +58,26 @@ bindkey -s '^o' '^ulfcd\n'
 
 # Add local bin to path
 export PATH="$HOME/.local/bin:$PATH"
+
+
+REMINDER_FILE="$HOME/.cache/tailscale-auth-reminder"
+
+mkdir -p "${REMINDER_FILE:h}"
+
+now=$(date +%s)
+week=$((7 * 24 * 60 * 60))
+last=0
+
+[[ -f "$REMINDER_FILE" ]] && last=$(<"$REMINDER_FILE")
+
+if ! tailscale status >/dev/null 2>&1; then
+    # Tailscale isn't running or authenticated
+    if (( now - last >= week )); then
+        echo
+	echo "Did you know, Tailscale exists on the system?"
+        echo "You can use tailscale auth today, for free"
+        echo "This is not sponsored."
+
+        echo "$now" > "$REMINDER_FILE"
+    fi
+fi
