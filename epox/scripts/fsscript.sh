@@ -139,9 +139,6 @@ size0="2048"
 algo0=zstd
 ZRAMCONF
 
-echo ">>> Removing old Python installer..."
-rm -rf /usr/share/calcium-installer
-
 echo ">>> Enabling Guru overlay and installing opencode-bin..."
 run_optional "Guru repo enable" eselect repository enable guru
 run_optional "Guru repo sync" emaint sync -r guru
@@ -189,29 +186,11 @@ fi
 echo ">>> Installing uv..."
 wget -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path || echo "(uv installation failed)"
 
-echo ">>> Installing Fildem global menu..."
-if wget -q -O /tmp/fildem.tar.gz "https://github.com/InledGroup/Fildem/archive/refs/heads/main.tar.gz"; then
-  tar xzf /tmp/fildem.tar.gz -C /tmp
-  FILDEM_DIR=$(ls -d /tmp/Fildem-* /tmp/fildem-* 2>/dev/null | head -1 || true)
-  if [ -n "$FILDEM_DIR" ]; then
-    cd "$FILDEM_DIR"
-    run_optional "Fildem pip install" pip3 install --break-system-packages --no-deps .
-    if [ -d fildem@inled.es ]; then
-      mkdir -p /usr/share/gnome-shell/extensions
-      cp -r fildem@inled.es /usr/share/gnome-shell/extensions/
-    fi
-    cd /
-  fi
-  rm -rf /tmp/fildem* /tmp/Fildem-*
-else
-  echo ":: [WARNING] Fildem download link failed." >&2
-fi
-
 # System-wide dconf configuration
 mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
 [org/gnome/shell]
-enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'medialine@funinkina.co.in' 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'drive-menu@gnome-shell-extensions.gcampax.github.com']
+enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'medialine@funinkina.co.in' 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'drive-menu@gnome-shell-extensions.gcampax.github.com']
 favorite-apps=['io.gitlab.librewolf-community.desktop', 'org.gnome.Nautilus.desktop']
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
