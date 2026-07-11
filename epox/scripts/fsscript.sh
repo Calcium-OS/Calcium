@@ -385,6 +385,32 @@ run_optional "Gsettings Dock Change Part 3" gsettings set org.gnome.shell.extens
 run_optional "Set GNOME to dark mode" gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 run_optional "Automount Drives" gsettings set org.gnome.desktop.media-handling automount true
 
+# GNOME likes to lock its self automatically. That is fine, the problem is the lock screen turns off the monitor screens which can cause issues with Sunshine
+# I do not enable this just in case it causes issues with laptop users, but the fix is simple in cause you want to use a laptop as a streaming server.
+
+is_laptop=false
+
+# Method 1: Check DMI chassis type
+if [[ -r /sys/class/dmi/id/chassis_type ]]; then
+    case "$(cat /sys/class/dmi/id/chassis_type)" in
+        8|9|10|14|31|32)
+            is_laptop=true
+            ;;
+    esac
+fi
+
+# Method 2: Fallback to battery detection
+if ! $is_laptop && ls /sys/class/power_supply/BAT* >/dev/null 2>&1; then
+    is_laptop=true
+fi
+
+if $is_laptop; then
+    echo "Laptop detected. Disabling Unblank Lock Screen extension..."
+    gnome-extensions disable unblank@sun.wxg@gmail.com
+else
+    echo "Desktop detected. Leaving extension enabled."
+fi
+
 echo ">>> Setting default wallpaper..."
 WALLPAPER_URL="https://images.steamusercontent.com/ugc/8546979052418597/251C5932F5CCC0355D748AA1A19608A0625C26E8/"
 mkdir -p /usr/share/backgrounds/gnome
