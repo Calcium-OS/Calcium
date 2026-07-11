@@ -1,7 +1,6 @@
 name: Build Gentoo ISOs
 
 on:
-  push:
   workflow_dispatch:
 
 env:
