@@ -2,9 +2,6 @@ name: Build Gentoo ISOs
 
 on:
   push:
-    branches: [main]
-    paths-ignore:
-      - '.github/workflows/test-installer.yml'
   workflow_dispatch:
 
 env:
