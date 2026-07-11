@@ -126,6 +126,7 @@ emerge --quiet --getbinpkg --backtrack=100 --update --deep --changed-use --autou
   net-vpn/tailscale \
   dev-python/pip \
   games-util/game-device-udev-rules \
+  media-gfx/loupe \
   gnome-extra/gnome-shell-extension-gsconnect
 
 echo ">>> Configuring zram swap..."
@@ -532,6 +533,7 @@ echo -e "\n[3/3] Top System Directory Sizes (Depth 2):"
 du -hx --max-depth=2 /usr /var /opt /home /root 2>/dev/null | sort -h -r | head -n 30
 
 emerge -C www-client/epiphany
+emerge -C media-gfx/eog
 
 echo "=================================================="
 echo ">>> LiveCD configuration complete"
