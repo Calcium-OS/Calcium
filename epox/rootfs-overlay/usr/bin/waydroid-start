@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+
+# To DO - Disable onscreen keyboard by default, add title bar to to window, prompt for Google Play certification, change launcher?
+
+set -e
+
+# Check GPU driver
+if lsmod | grep -q "^nvidia"; then
+    echo "NVIDIA driver detected."
+    echo "Applying performance resolution: 854x480"
+
+    waydroid prop set persist.waydroid.width 854
+    waydroid prop set persist.waydroid.height 480
+
+elif lsmod | grep -q "^nouveau"; then
+    echo "Nouveau/NVK detected."
+    echo "Keeping default resolution."
+
+else
+    echo "No NVIDIA proprietary or nouveau driver detected."
+fi
+
+echo "Starting Waydroid container..."
+
+sudo waydroid init &
+
+sudo waydroid container start &
+
+echo "Initializing Waydroid session..."
+
+waydroid session start &
+
+sleep 5
+
+echo "Starting Waydroid UI..."
+
+waydroid show-full-ui
