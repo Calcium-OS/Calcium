@@ -165,18 +165,18 @@ jobs:
             -cf - . \
             | tar2sqfs "$SNAPSHOT" -q -f -j1 -c gzip
 
-      - name: Generate catalyst state cache key
-        id: cache-state-key
-        run: |
-          set -euo pipefail
-          HASH=$(sha256sum \
-            ... ${{ matrix.variant.spec_file }} \
-            epox/catalyst.conf \
-            ${{ matrix.variant.portage_dir }}/make.conf \
-            epox/env/catalystrc \
-            | sha256sum | cut -d' ' -f1)
-          echo "key=${{ env.CACHE_VERSION }}-catalyst-state-${{ matrix.variant.target }}-$HASH" >> "$GITHUB_OUTPUT"
-
+          - name: Generate catalyst state cache key
+                  id: cache-state-key
+                  run: |
+                    set -euo pipefail
+                    HASH=$(sha256sum \
+                      ${{ matrix.variant.spec_file }} \
+                      epox/catalyst.conf \
+                      ${{ matrix.variant.portage_dir }}/make.conf \
+                      epox/env/catalystrc \
+                      | sha256sum | cut -d' ' -f1)
+                    echo "key=${{ env.CACHE_VERSION }}-catalyst-state-${{ matrix.variant.target }}-$HASH" >> "$GITHUB_OUTPUT"
+          
       - name: Cache catalyst build state (iterative/delta builds)
         uses: actions/cache@v6
         with:
