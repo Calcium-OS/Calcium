@@ -1,0 +1,14 @@
+#!/sbin/openrc-run
+
+name="tailscale-ssh"
+description="Enable Tailscale SSH"
+
+depend() {
+    need tailscale
+}
+
+start() {
+    ebegin "Enabling Tailscale SSH"
+    /usr/bin/tailscale set --ssh
+    eend $?
+}

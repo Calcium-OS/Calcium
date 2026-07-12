@@ -126,6 +126,7 @@ emerge --quiet --getbinpkg --backtrack=100 --update --deep --changed-use --autou
   net-vpn/tailscale \
   dev-python/pip \
   games-util/game-device-udev-rules \
+  media-gfx/loupe \
   gnome-extra/gnome-shell-extension-gsconnect
 
 echo ">>> Configuring zram swap..."
@@ -211,7 +212,7 @@ fi
 mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
 [org/gnome/shell]
-enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'medialine@funinkina.co.in' 'wintile-beyond@GrylledCheez.xyz', 'dash-to-dock@micxgx.gmail.com', 'compiz-alike-magic-lamp-effect@hermes83.github.com', 'drive-menu@gnome-shell-extensions.gcampax.github.com']
+enabled-extensions=['copyous@boerdereinar.dev', 'gsconnect@andyholmes.github.io', 'appindicatorsupport@rgcjonas.gmail.com', 'medialine@funinkina.co.in' 'dash-to-dock@micxgx.gmail.com', 'drive-menu@gnome-shell-extensions.gcampax.github.com']
 favorite-apps=['io.gitlab.librewolf-community.desktop', 'org.gnome.Nautilus.desktop']
 [org/gnome/desktop/interface]
 color-scheme='prefer-dark'
@@ -399,6 +400,33 @@ run_optional "Gsettings Dock Change Part 1" gsettings set org.gnome.shell.extens
 run_optional "Gsettings Dock Change Part 2" gsettings set org.gnome.shell.extensions.dash-to-dock dock-fixed true
 run_optional "Gsettings Dock Change Part 3" gsettings set org.gnome.shell.extensions.dash-to-dock autohide false
 run_optional "Set GNOME to dark mode" gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
+run_optional "Automount Drives" gsettings set org.gnome.desktop.media-handling automount true
+
+# GNOME likes to lock its self automatically. That is fine, the problem is the lock screen turns off the monitor screens which can cause issues with Sunshine
+# I do not enable this just in case it causes issues with laptop users, but the fix is simple in cause you want to use a laptop as a streaming server.
+
+is_laptop=false
+
+# Method 1: Check DMI chassis type
+if [[ -r /sys/class/dmi/id/chassis_type ]]; then
+    case "$(cat /sys/class/dmi/id/chassis_type)" in
+        8|9|10|14|31|32)
+            is_laptop=true
+            ;;
+    esac
+fi
+
+# Method 2: Fallback to battery detection
+if ! $is_laptop && ls /sys/class/power_supply/BAT* >/dev/null 2>&1; then
+    is_laptop=true
+fi
+
+if $is_laptop; then
+    echo "Laptop detected. Disabling Unblank Lock Screen extension..."
+    gnome-extensions disable unblank@sun.wxg@gmail.com
+else
+    echo "Desktop detected. Leaving extension enabled."
+fi
 
 echo ">>> Setting default wallpaper..."
 WALLPAPER_URL="https://images.steamusercontent.com/ugc/8546979052418597/251C5932F5CCC0355D748AA1A19608A0625C26E8/"
@@ -539,7 +567,7 @@ cat > "$USER_HOME/.config/autostart/sunshine.desktop" <<'EOF'
 Type=Application
 Name=Sunshine
 Comment=GameStream host for Moonlight
-Exec=/opt/sunshine/sunshine
+Exec=bash -c '[ -f "$HOME/.local/bin/sunshine.AppImage" ] && "$HOME/.local/bin/sunshine.AppImage" || /opt/sunshine/sunshine'
 Icon=sunshine
 Categories=Network;
 Terminal=false
@@ -548,6 +576,13 @@ X-GNOME-Autostart-enabled=true
 EOF
 
 chown "$USER_NAME:$USER_NAME" "$USER_HOME/.config/autostart/sunshine.desktop"
+
+# Enable Tailscale SSH
+
+chmod +x /etc/init.d/tailscale-ssh
+rc-update add tailscale-ssh default
+rc-service tailscale-ssh start
+
 
 echo ">>> Cleaning up to reduce ISO size..."
 rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
@@ -571,6 +606,7 @@ echo -e "\n[3/3] Top System Directory Sizes (Depth 2):"
 du -hx --max-depth=2 /usr /var /opt /home /root 2>/dev/null | sort -h -r | head -n 30
 
 emerge -C www-client/epiphany
+emerge -C media-gfx/eog
 
 echo "=================================================="
 echo ">>> LiveCD configuration complete"
