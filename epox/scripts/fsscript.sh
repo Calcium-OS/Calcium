@@ -232,14 +232,31 @@ run_optional "dconf engine profile update" dconf update
 LOCAL_BIN="/etc/skel/.local/bin"
 mkdir -p "$LOCAL_BIN"
 
-echo ">>> Installing Sunshine AppImage to skeleton environment..."
-curl -s https://api.github.com/repos/LizardByte/Sunshine/releases/latest \
-| grep browser_download_url \
-| grep -i "AppImage" \
-| cut -d '"' -f 4 \
-| head -n 1 \
-| wget -O "$LOCAL_BIN/sunshine.AppImage" -i - || echo "(Sunshine installation failed)"
-[ -f "$LOCAL_BIN/sunshine.AppImage" ] && chmod +x "$LOCAL_BIN/sunshine.AppImage"
+# Autostart Sunshine via System Skeleton Configuration
+echo ">>> Configuring system skeleton to autostart Sunshine..."
+
+SKEL_AUTOSTART="/etc/skel/.config/autostart"
+mkdir -p "$SKEL_AUTOSTART"
+
+cat > "$SKEL_AUTOSTART/sunshine.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Sunshine
+Comment=GameStream host for Moonlight
+Exec=bash -c '[ -f "$HOME/.local/bin/sunshine.AppImage" ] && "$HOME/.local/bin/sunshine.AppImage" || /opt/sunshine/sunshine'
+Icon=sunshine
+Categories=Network;
+Terminal=false
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
+EOF
+
+# Ensure the active livecd environment inherits this immediately if already instantiated
+if [ -d /home/livecd ]; then
+  mkdir -p /home/livecd/.config/autostart
+  cp -a "$SKEL_AUTOSTART/sunshine.desktop" /home/livecd/.config/autostart/
+  chown -R livecd:users /home/livecd/.config
+fi
 
 echo ">>> Installing Wine AppImage to skeleton environment..."
 curl -s https://api.github.com/repos/mmtrt/WINE_AppImage/releases/latest \
@@ -538,6 +555,27 @@ EOF
 
 curl https://github.com/Calcium-OS/Calcium/raw/refs/heads/Internetperson-dev-patch-24/epox/scripts/patches.sh | bash
 
+# Autostart Sunshine
+
+USER_HOME=$(getent passwd "${SUDO_USER:-$USER}" | cut -d: -f6)
+USER_NAME="${SUDO_USER:-$USER}"
+
+mkdir -p "$USER_HOME/.config/autostart"
+
+cat > "$USER_HOME/.config/autostart/sunshine.desktop" <<'EOF'
+[Desktop Entry]
+Type=Application
+Name=Sunshine
+Comment=GameStream host for Moonlight
+Exec=bash -c '[ -f "$HOME/.local/bin/sunshine.AppImage" ] && "$HOME/.local/bin/sunshine.AppImage" || /opt/sunshine/sunshine'
+Icon=sunshine
+Categories=Network;
+Terminal=false
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
+EOF
+
+chown "$USER_NAME:$USER_NAME" "$USER_HOME/.config/autostart/sunshine.desktop"
 
 # Enable Tailscale SSH
 
