@@ -1,4 +1,4 @@
-name: Build Gentoo ARM64 ISOs
+name: Build Gentoo ARM64 Gnome Desktop
 
 on:
   workflow_dispatch:
