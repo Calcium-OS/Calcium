@@ -37,4 +37,40 @@ echo "Starting GCC rebuild..."
 
 emerge -1av sys-devel/gcc
 
+# Update Opencode past the version in the GURU repository
 
+INSTALL_DIR="/usr/bin"
+BINARY="$INSTALL_DIR/opencode"
+
+case "$(uname -m)" in
+    x86_64|amd64)
+        ARCH="x64"
+        ;;
+    aarch64|arm64)
+        ARCH="arm64"
+        ;;
+    *)
+        echo "Unsupported architecture: $(uname -m)" >&2
+        exit 1
+        ;;
+esac
+
+URL="https://github.com/anomalyco/opencode/releases/latest/download/opencode-linux-${ARCH}.tar.gz"
+
+echo "Detected architecture: $(uname -m)"
+echo "Using OpenCode build: linux-${ARCH}"
+echo "Downloading latest release..."
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+curl -fsSL "$URL" -o "$TMP_DIR/opencode.tar.gz"
+
+echo "Extracting..."
+tar -xzf "$TMP_DIR/opencode.tar.gz" -C "$TMP_DIR"
+
+echo "Installing to $BINARY..."
+sudo install -m 0755 "$TMP_DIR/opencode" "$BINARY"
+
+echo "OpenCode installed successfully:"
+"$BINARY" --version
