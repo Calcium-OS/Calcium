@@ -251,6 +251,10 @@ StartupNotify=false
 X-GNOME-Autostart-enabled=true
 EOF
 
+# Fix Virutal DuelSense 5 emulation in Sunshine - https://github.com/LizardByte/Sunshine/issues/3758#issuecomment-2822778500
+
+echo "uhid" | tee /etc/modules-load.d/uhid.conf
+
 # Ensure the active livecd environment inherits this immediately if already instantiated
 if [ -d /home/livecd ]; then
   mkdir -p /home/livecd/.config/autostart
