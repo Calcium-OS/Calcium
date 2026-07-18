@@ -190,24 +190,6 @@ fi
 echo ">>> Installing uv..."
 wget -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path || echo "(uv installation failed)"
 
-echo ">>> Installing Fildem global menu..."
-if wget -q -O /tmp/fildem.tar.gz "https://github.com/InledGroup/Fildem/archive/refs/heads/main.tar.gz"; then
-  tar xzf /tmp/fildem.tar.gz -C /tmp
-  FILDEM_DIR=$(ls -d /tmp/Fildem-* /tmp/fildem-* 2>/dev/null | head -1 || true)
-  if [ -n "$FILDEM_DIR" ]; then
-    cd "$FILDEM_DIR"
-    run_optional "Fildem pip install" pip3 install --break-system-packages --no-deps .
-    if [ -d fildem@inled.es ]; then
-      mkdir -p /usr/share/gnome-shell/extensions
-      cp -r fildem@inled.es /usr/share/gnome-shell/extensions/
-    fi
-    cd /
-  fi
-  rm -rf /tmp/fildem* /tmp/Fildem-*
-else
-  echo ":: [WARNING] Fildem download link failed." >&2
-fi
-
 # System-wide dconf configuration
 mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
@@ -271,16 +253,6 @@ curl -s https://api.github.com/repos/mmtrt/WINE_AppImage/releases/latest \
 | wget -O "$LOCAL_BIN/wine.AppImage" -i - || echo "(Wine installation failed)"
 [ -f "$LOCAL_BIN/wine.AppImage" ] && chmod +x "$LOCAL_BIN/wine.AppImage"
 
-echo ">>> Installing Waydroid AppImage to skeleton environment..."
-curl -s https://api.github.com/repos/pkgforge-dev/Waydroid-AppImage/releases/latest \
-| grep browser_download_url \
-| grep x86_64 \
-| grep AppImage \
-| cut -d '"' -f 4 \
-| head -n 1 \
-| wget -O "$LOCAL_BIN/Waydroid.AppImage" -i - || echo "(Waydroid installation failed)"
-[ -f "$LOCAL_BIN/Waydroid.AppImage" ] && chmod +x "$LOCAL_BIN/Waydroid.AppImage"
-
 echo ">>> Installing chiaki-ng AppImage to skeleton environment..."
 curl -s https://api.github.com/repos/streetpea/chiaki-ng/releases/latest \
 | grep browser_download_url \
@@ -326,7 +298,6 @@ Exec=bash -c 'sleep 3; for img in "$HOME"/.local/bin/*.AppImage; do [ -f "$img" 
 NoDisplay=true
 X-GNOME-Autostart-enabled=true
 EOF
-
 
 echo ">>> Setting up auto-update cron jobs..."
 mkdir -p /etc/cron.daily /etc/cron.weekly
@@ -576,7 +547,7 @@ chown "$USER_NAME:$USER_NAME" "$USER_HOME/.config/autostart/sunshine.desktop"
 
 chmod +x /etc/init.d/tailscale-ssh
 rc-update add tailscale-ssh default
-rc-service tailscale-ssh start
+# rc-service tailscale-ssh start - Breaks build environment.
 
 
 echo ">>> Cleaning up to reduce ISO size..."
