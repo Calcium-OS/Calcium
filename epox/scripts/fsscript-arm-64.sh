@@ -243,23 +243,15 @@ if [ -d /home/livecd ]; then
 fi
 
 # ==============================================================================
-# EDIT THESE RAW LINKS FOR YOUR ARM64 APPIMAGES
+# ARM64 AppImages
 # ==============================================================================
-echo ">>> Downloading raw ARM64 AppImage binaries..."
+echo ">>> Downloading ARM64 AppImage binaries..."
 
-WINE_ARM64_URL="https://github.com/mmtrt/WINE_AppImage/releases/download/test7/wine-staging_11.11-x86_64.AppImage" # NOT ARM
 CHIAKI_ARM64_URL="https://github.com/streetpea/chiaki-ng/releases/download/v1.10.0/chiaki-ng.AppImage_arm64"
-HEROIC_ARM64_URL="https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/releases/download/v2.22.0/Heroic-2.22.0-linux-x86_64.AppImage" # NOT ARM
 OBSIDIAN_ARM64_URL="https://github.com/obsidianmd/obsidian-releases/releases/download/v1.12.7/Obsidian-1.12.7-arm64.AppImage"
-
-wget -q -O "$LOCAL_BIN/wine.AppImage" "$WINE_ARM64_URL" || echo "(Wine ARM64 raw download failed)"
-[ -f "$LOCAL_BIN/wine.AppImage" ] && chmod +x "$LOCAL_BIN/wine.AppImage"
 
 wget -q -O "$LOCAL_BIN/chiaki-ng.AppImage" "$CHIAKI_ARM64_URL" || echo "(chiaki-ng ARM64 raw download failed)"
 [ -f "$LOCAL_BIN/chiaki-ng.AppImage" ] && chmod +x "$LOCAL_BIN/chiaki-ng.AppImage"
-
-wget -q -O "$LOCAL_BIN/Heroic.AppImage" "$HEROIC_ARM64_URL" || echo "(Heroic Game Launcher ARM64 raw download failed)"
-[ -f "$LOCAL_BIN/Heroic.AppImage" ] && chmod +x "$LOCAL_BIN/Heroic.AppImage"
 
 wget -q -O "$LOCAL_BIN/Obsidian.AppImage" "$OBSIDIAN_ARM64_URL" || echo "(Obsidian ARM64 raw download failed)"
 [ -f "$LOCAL_BIN/Obsidian.AppImage" ] && chmod +x "$LOCAL_BIN/Obsidian.AppImage"

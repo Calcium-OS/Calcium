@@ -31,6 +31,6 @@ boot/kernel/gentoo/dracut_args: --zstd --no-hostonly -a dmsquash-live -a dm -o i
 
 livecd/rm: /var/cache/distfiles /var/cache/binpkgs /var/tmp/ccache /var/db/repos/gentoo /var/tmp/portage /usr/portage/distfiles
 
-livecd/fsscript: /repo/epox/scripts/fsscript.sh
+livecd/fsscript: /repo/epox/scripts/fsscript-arm-64.sh
 
 livecd/rcadd: gdm|default dbus|default elogind|default cronie|default dhcpcd|default netmount|default ntpd|default

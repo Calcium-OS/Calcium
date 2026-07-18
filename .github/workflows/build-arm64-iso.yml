@@ -105,7 +105,7 @@ jobs:
             /var/tmp/ccache
           key: ${{ env.CACHE_VERSION }}-catalyst-${{ matrix.variant.target }}-${{ github.run_id }}
           restore-keys: |
-            ${ env.CACHE_VERSION }}-catalyst-${{ matrix.variant.target }}-
+            ${{ env.CACHE_VERSION }}-catalyst-${{ matrix.variant.target }}-
             ${{ env.CACHE_VERSION }}-catalyst-
 
       - name: Setup local binhost from cached packages
@@ -168,7 +168,7 @@ jobs:
         run: |
           set -euo pipefail
           HASH=$(sha256sum \
-            ... ${{ matrix.variant.spec_file }} \
+            ${{ matrix.variant.spec_file }} \
             epox/catalyst.conf \
             ${{ matrix.variant.portage_dir }}/make.conf \
             epox/env/catalystrc \
@@ -299,20 +299,10 @@ jobs:
         with:
           name: gentoo-gnome-openrc-arm64
 
-      - name: Download Server ISO
-        uses: actions/download-artifact@v7
-        with:
-          name: gentoo-server-openrc-arm64
-
       - name: Download GNOME rootfs
         uses: actions/download-artifact@v7
         with:
           name: calcium-rootfs-gnome-arm64
-
-      - name: Download Server rootfs
-        uses: actions/download-artifact@v7
-        with:
-          name: calcium-rootfs-server-arm64
 
       - name: Create release
         env:
@@ -323,6 +313,4 @@ jobs:
             --title "Calcium OS v$VERSION (ARM64)" \
             --notes "Calcium OS v$VERSION ARM64 architecture deployment release." \
             gentoo-gnome-openrc-arm64.iso \
-            gentoo-server-openrc-arm64.iso \
-            calcium-rootfs-gnome-arm64.tar.xz \
-            calcium-rootfs-server-arm64.tar.xz
+            calcium-rootfs-gnome-arm64.tar.xz
