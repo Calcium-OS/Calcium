@@ -572,7 +572,7 @@ echo -e "\n[3/3] Top System Directory Sizes (Depth 2):"
 du -hx --max-depth=2 /usr /var /opt /home /root 2>/dev/null | sort -h -r | head -n 30
 
 emerge -C www-client/epiphany
-emerge -C media-gfx/eog
+run_optional "Remove outdated Image Viewer - Eye Of Gnome" emerge -C media-gfx/eog
 
 echo "=================================================="
 echo ">>> LiveCD configuration complete"
