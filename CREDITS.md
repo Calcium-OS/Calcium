@@ -67,3 +67,7 @@ A good productivity program.
 ## [pwvucontrol](https://flathub.org/apps/com.saivert.pwvucontrol)
 
 A modern-looking audio manager.
+
+## gnome-folder-icons
+
+[Source of the Projects folder icon.](https://github.com/Samu01Tech/gnome-folder-icons/blob/main/apps_folder.svg)
