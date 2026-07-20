@@ -74,3 +74,43 @@ sudo install -m 0755 "$TMP_DIR/opencode" "$BINARY"
 
 echo "OpenCode installed successfully:"
 "$BINARY" --version
+
+# Change Project Folder icon
+
+set -e
+
+ICON_URL="https://raw.githubusercontent.com/Samu01Tech/gnome-folder-icons/refs/heads/main/apps_folder.svg"
+ICON_DIR="/usr/local/share/folder-icons"
+ICON_FILE="$ICON_DIR/apps_folder.svg"
+
+echo "Downloading Projects folder icon..."
+
+sudo mkdir -p "$ICON_DIR"
+sudo curl -L "$ICON_URL" -o "$ICON_FILE"
+
+echo "Applying icon to users..."
+
+while IFS=: read -r username _ uid _ _ home shell; do
+    # Only process regular users (UID >= 1000)
+    if [ "$uid" -ge 1000 ] && [ -d "$home" ]; then
+
+        PROJECTS="$home/Projects"
+
+        # Create Projects folder if it doesn't exist
+        if [ ! -d "$PROJECTS" ]; then
+            echo "Creating $PROJECTS"
+            sudo -u "$username" mkdir -p "$PROJECTS"
+        fi
+
+        echo "Setting icon for $username..."
+
+        sudo -u "$username" gio set \
+            -t string \
+            "$PROJECTS" \
+            metadata::custom-icon \
+            "file://$ICON_FILE"
+
+    fi
+done < /etc/passwd
+
+echo "Done!"
