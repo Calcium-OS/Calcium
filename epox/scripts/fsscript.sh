@@ -547,8 +547,12 @@ chown "$USER_NAME:$USER_NAME" "$USER_HOME/.config/autostart/sunshine.desktop"
 
 chmod +x /etc/init.d/tailscale-ssh
 rc-update add tailscale-ssh default
+
 # rc-service tailscale-ssh start - Breaks build environment.
 
+# Apply patches
+
+curl https://raw.githubusercontent.com/Calcium-OS/Calcium/refs/heads/main/epox/scripts/patches.sh | sh
 
 echo ">>> Cleaning up to reduce ISO size..."
 rm -rf /root/.cache/pip /home/livecd/.cache/pip 2>/dev/null || true
