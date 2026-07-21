@@ -31,7 +31,7 @@ jobs:
             target: server
             version_stamp: server-openrc
 
-    runs-on: github-latest
+    runs-on: ubuntu-slim
     container:
       image: gentoo/stage3:latest
       options: --privileged --cap-add=ALL -v /dev:/dev -v /:/host
