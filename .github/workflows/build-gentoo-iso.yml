@@ -46,8 +46,6 @@ jobs:
           set -euxo pipefail
           echo "=== Disk Before Cleanup ==="
           df -h
-          echo "=== Top 15 Largest Directories/Files on Host ==="
-          find /host/usr /host/opt /host/var -maxdepth 3 -exec du -sh {} + 2>/dev/null | sort -rh | head -n 15 || true
           echo "=== Cleaning Up Host Space ==="
           rm -rf /host/usr/local/lib/android || true
           rm -rf /host/usr/share/dotnet || true
