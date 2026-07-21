@@ -107,13 +107,16 @@ jobs:
             /var/tmp/ccache
           key: ${{ env.CACHE_VERSION }}-catalyst-${{ matrix.variant.target }}-${{ github.run_id }}
           restore-keys: |
-            ${ env.CACHE_VERSION }}-catalyst-${{ matrix.variant.target }}-
+            ${{ env.CACHE_VERSION }}-catalyst-${{ matrix.variant.target }}-
             ${{ env.CACHE_VERSION }}-catalyst-
 
       - name: Setup local binhost from cached packages
         run: |
+          BINHOST_URL="file:///var/cache/binpkgs https://distfiles.gentoo.org/releases/arm64/binpackages/23.0/arm64"
           sed -i '/^PORTAGE_BINHOST/d' /etc/portage/make.conf
-          echo "PORTAGE_BINHOST=\"file:///var/cache/binpkgs $PORTAGE_BINHOST\"" >> /etc/portage/make.conf
+          echo "PORTAGE_BINHOST=\"$BINHOST_URL\"" >> /etc/portage/make.conf
+          sed -i '/^PORTAGE_BINHOST/d' ${{ matrix.variant.portage_confdir }}/make.conf
+          echo "PORTAGE_BINHOST=\"$BINHOST_URL\"" >> ${{ matrix.variant.portage_confdir }}/make.conf
           echo "::notice::Binhost: local cache first, Gentoo official as fallback"
 
       - name: Get latest seed stage3 filename
