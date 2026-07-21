@@ -8,7 +8,7 @@ env:
   STAGE3_BASE: https://distfiles.gentoo.org/releases/amd64/autobuilds
   PORTAGE_BINHOST: https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64
   # Change this value (e.g., v1 -> v2) to completely bust/clear all CI caches
-  CACHE_VERSION: v2
+  CACHE_VERSION: v3
 
 jobs:
   build-iso:
@@ -31,7 +31,7 @@ jobs:
             target: server
             version_stamp: server-openrc
 
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: github-latest
     container:
       image: gentoo/stage3:latest
       options: --privileged --cap-add=ALL -v /dev:/dev -v /:/host
