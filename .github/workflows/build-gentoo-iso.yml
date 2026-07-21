@@ -116,8 +116,11 @@ jobs:
 
       - name: Setup local binhost from cached packages
         run: |
+          BINHOST_URL="file:///var/cache/binpkgs https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64"
           sed -i '/^PORTAGE_BINHOST/d' /etc/portage/make.conf
-          echo "PORTAGE_BINHOST=\"file:///var/cache/binpkgs https://distfiles.gentoo.org/releases/amd64/binpackages/23.0/x86-64\"" >> /etc/portage/make.conf
+          echo "PORTAGE_BINHOST=\"$BINHOST_URL\"" >> /etc/portage/make.conf
+          sed -i '/^PORTAGE_BINHOST/d' ${{ matrix.variant.portage_confdir }}/make.conf
+          echo "PORTAGE_BINHOST=\"$BINHOST_URL\"" >> ${{ matrix.variant.portage_confdir }}/make.conf
           echo "::notice::Binhost: local cache first, Gentoo official as fallback"
 
       - name: Get latest seed stage3 filename
