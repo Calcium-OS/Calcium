@@ -113,4 +113,50 @@ while IFS=: read -r username _ uid _ _ home shell; do
     fi
 done < /etc/passwd
 
+# Update Librewolf icon
+
+#!/usr/bin/env bash
+set -euo pipefail
+
+ICON_NAME="io.gitlab.librewolf-community"
+ICON_URL="https://upload.wikimedia.org/wikipedia/commons/d/d0/LibreWolf_icon.svg"
+
+ICON_DIR="$HOME/.local/share/icons/hicolor/512x512/apps"
+SVG="/tmp/${ICON_NAME}.svg"
+PNG="$ICON_DIR/${ICON_NAME}.png"
+
+mkdir -p "$ICON_DIR"
+
+echo "Downloading SVG..."
+curl -L "$ICON_URL" -o "$SVG"
+
+if command -v rsvg-convert >/dev/null; then
+    echo "Converting with librsvg..."
+    rsvg-convert -w 512 -h 512 "$SVG" -o "$PNG"
+elif command -v magick >/dev/null; then
+    echo "Converting with ImageMagick..."
+    magick -background none "$SVG" -resize 512x512 "$PNG"
+elif command -v convert >/dev/null; then
+    echo "Converting with ImageMagick (legacy)..."
+    convert -background none "$SVG" -resize 512x512 "$PNG"
+else
+    echo "Error: Install either librsvg or ImageMagick."
+    exit 1
+fi
+
+rm -f "$SVG"
+
+if command -v gtk-update-icon-cache >/dev/null; then
+    gtk-update-icon-cache "$HOME/.local/share/icons/hicolor" 2>/dev/null || true
+fi
+
+if command -v update-desktop-database >/dev/null; then
+    update-desktop-database "$HOME/.local/share/applications" 2>/dev/null || true
+fi
+
+
+echo "Installed:"
+
+# End of patches
+
 echo "Done!"
