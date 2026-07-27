@@ -190,6 +190,8 @@ fi
 echo ">>> Installing uv..."
 wget -q -O- https://astral.sh/uv/install.sh | env UV_UNMANAGED_INSTALL=/usr/local/bin sh -s -- --no-modify-path || echo "(uv installation failed)"
 
+# Most of the extentions are easily explained, disable-unredirect fixes glitchy fullscreen recording behaviour in OBS with Pipewire capture.
+
 # System-wide dconf configuration
 mkdir -p /etc/dconf/db/local.d
 cat > /etc/dconf/db/local.d/01-extensions <<'EXTDCONF'
