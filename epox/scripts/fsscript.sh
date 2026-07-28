@@ -490,6 +490,13 @@ rc-update add tailscale default 2>/dev/null || true
 rc-update add zram-init boot 2>/dev/null || true
 rc-update add NetworkManager boot 2>/dev/null || true
 
+# Audio stack (pipewire, pipewire-pulse, wireplumber)
+
+rc-update add pipewire default 2>/dev/null || true
+rc-update add pipewire-pulse boot 2>/dev/null || true
+rc-update add wireplumber boot 2>/dev/null || true
+
+
 mkdir -p /etc/skel/.local/bin
 cat >> /etc/bash/bashrc <<'BASHRC'
 _local_bin="${HOME}/.local/bin"
