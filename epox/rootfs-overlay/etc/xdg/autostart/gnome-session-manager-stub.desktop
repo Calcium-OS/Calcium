@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=GNOME Session Manager Stub
+Comment=Fallback org.gnome.SessionManager D-Bus service for power-off/restart
+Exec=/usr/local/bin/gnome-session-manager-stub.py
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Delay=0
