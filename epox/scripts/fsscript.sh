@@ -126,7 +126,6 @@ emerge --quiet --getbinpkg --backtrack=100 --update --deep --changed-use --autou
   net-vpn/tailscale \
   dev-python/pip \
   games-util/game-device-udev-rules \
-  media-gfx/loupe \
   gnome-extra/gnome-shell-extension-gsconnect
 
 echo ">>> Configuring zram swap..."
@@ -165,6 +164,7 @@ printf '%s\n' \
   com.protonvpn.www \
   org.torproject.torbrowser-launcher \
   dev.zed.Zed \
+  org.gnome.Loupe \
   io.github.kolunmi.Bazaar \
   io.gitlab.librewolf-community \
   it.mijorus.gearlever \
