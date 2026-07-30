@@ -1,0 +1,9 @@
+[Desktop Entry] 
+Type=Application
+Name=NVIDIA SMI
+Exec=/usr/bin/nvidia-smi-boot.sh
+Terminal=false
+X-GNOME-Autostart-enabled=true
+
+# Why would you run nvidia-smi in an invisable terminal. The reason is that NVENC features, and some functionality for running DirectX11, and DirectX12 games do not activate until nvidia-smi is launched. This is a pain to troubleshooter as users may blame OBS, Steam, or the video game they are playing instead of the underlying issue.
+# This is a quick hot fix for the issue.
