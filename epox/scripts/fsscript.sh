@@ -91,6 +91,8 @@ emerge --quiet --getbinpkg --backtrack=100 --update --deep --changed-use --autou
   gui-libs/display-manager-init \
   x11-themes/gnome-themes-standard \
   x11-drivers/nvidia-drivers \
+  media-libs/nvidia-vaapi-driver \
+  media-video/libva-utils \
   net-wireless/wpa_supplicant \
   net-misc/dhcpcd \
   sys-boot/efibootmgr \
