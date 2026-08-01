@@ -1,0 +1,266 @@
+#!/bin/sh
+
+DRI_PATH=${HOME}/.var/app/io.gitlab.librewolf-community/dri
+APP_ID=io.gitlab.librewolf-community
+
+loop=0
+if [ "$1" = "--loop" ] || [ "$1" = "loop" ]; then
+  loop=1
+fi
+
+apply_flatpak() {
+  if ! command -v flatpak >/dev/null 2>&1; then
+    echo "flatpak not found; skipping flatpak overrides"
+    return
+  fi
+  if ! flatpak list --app --columns=application 2>/dev/null | grep -qx "${APP_ID}"; then
+    echo "${APP_ID} not installed; skipping flatpak overrides"
+    return#!/bin/sh
+
+DRI_PATH=${HOME}/.var/app/io.gitlab.librewolf-community/dri
+APP_ID=io.gitlab.librewolf-community
+
+loop=0
+if [ "$1" = "--loop" ] || [ "$1" = "loop" ]; then
+  loop=1
+fi
+
+apply_flatpak() {
+  if ! command -v flatpak >/dev/null 2>&1; then
+    echo "flatpak not found; skipping flatpak overrides"
+    return
+  fi
+  if ! flatpak list --app --columns=application 2>/dev/null | grep -qx "${APP_ID}"; then
+    echo "${APP_ID} not installed; skipping flatpak overrides"
+    return
+  fi
+
+  echo "Adding firefox flatpak overrides"
+  flatpak override --user --env=LIBVA_DRIVER_NAME=nvidia \
+                          --env=LIBVA_DRIVERS_PATH=${DRI_PATH} \
+                          --env=LIBVA_MESSAGING_LEVEL=1 \
+                          --env=MOZ_DISABLE_RDD_SANDBOX=1 \
+                          --env=NVD_BACKEND=direct \
+                          ${APP_ID}
+
+  echo "Copying nvidia vaapi driver into ${DRI_PATH}"
+  mkdir -p ${DRI_PATH}
+  for src in \
+      /usr/lib/dri/nvidia_drv_video.so \
+      /usr/lib64/dri/nvidia_drv_video.so \
+      /usr/lib64/va/drivers/nvidia_drv_video.so \
+      /usr/lib/va/drivers/nvidia_drv_video.so \
+      /usr/lib/x86_64-linux-gnu/dri/nvidia_drv_video.so \
+      /usr/lib/x86_64-linux-gnu/va/drivers/nvidia_drv_video.so; do
+    if [ -f "$src" ]; then
+      cp "$src" "${DRI_PATH}/nvidia_drv_video.so"
+      echo "  copied ${src}"
+      break
+    fi
+  done
+}
+
+find_profiles_ini() {
+  for base in \
+      "${HOME}/.var/app/${APP_ID}/config/librewolf/librewolf" \
+      "${HOME}/.var/app/${APP_ID}/config/librewolf" \
+      "${XDG_CONFIG_HOME:-${HOME}/.config}/librewolf/librewolf" \
+      "${XDG_CONFIG_HOME:-${HOME}/.config}/librewolf" \
+      "${HOME}/.librewolf" \
+      "${HOME}/.mozilla/librewolf"; do
+    if [ -f "${base}/profiles.ini" ]; then
+      echo "${base}/profiles.ini"
+      return 0
+    fi
+  done
+  return 1
+}
+
+profile_dir() {
+  ini="$1"
+  dir=$(dirname "$ini")
+  block=$(awk -v RS='' '/^\[Profile/ && /Default=1/ { print; exit }' "$ini")
+  if [ -z "$block" ]; then
+    block=$(awk -v RS='' '/^\[Profile/ { print; exit }' "$ini")
+  fi
+  path=$(printf '%s\n' "$block" | sed -n 's/^Path=//p' | tr -d '\r' | head -n1)
+  if [ -n "$path" ]; then
+    printf '%s/%s\n' "$dir" "$path"
+    return 0
+  fi
+  return 1
+}
+
+apply_prefs() {
+  userjs="$1"
+  if [ ! -f "$userjs" ]; then
+    : > "$userjs"
+  fi
+  if [ -s "$userjs" ] && [ "$(tail -c 1 "$userjs" | wc -c)" -ne 0 ]; then
+    printf '\n' >> "$userjs"
+  fi
+
+  for entry in \
+      'gfx.webrender.all|true' \
+      'media.ffmpeg.vaapi.enabled|true' \
+      'media.hardware-video-decoding.force-enabled|true' \
+      'media.rdd-ffmpeg.enabled|true' \
+      'media.av1.enabled|false' \
+      'gfx.x11-egl.force-enabled|true' \
+      'widget.dmabuf.force-enabled|true' \
+      'widget.wayland-dmabuf-vaapi.enabled|true'; do
+    name=${entry%%|*}
+    val=${entry##*|}
+    case "$val" in
+      true|false) line="user_pref(\"${name}\", ${val});" ;;
+      *) line="user_pref(\"${name}\", \"${val}\");" ;;
+    esac
+    if grep -q "user_pref(\"${name}\"," "$userjs"; then
+      sed -i "s|^user_pref(\"${name}\", .*);|${line}|" "$userjs"
+    else
+      printf '%s\n' "$line" >> "$userjs"
+    fi
+  done
+  echo "Applied about:config overrides to ${userjs}"
+}
+
+apply_all() {
+  apply_flatpak
+  ini=$(find_profiles_ini)
+  if [ -n "$ini" ]; then
+    pdir=$(profile_dir "$ini")
+    if [ -n "$pdir" ]; then
+      apply_prefs "${pdir}/user.js"
+    else
+      echo "Could not determine default profile from ${ini}"
+    fi
+  else
+    echo "No LibreWolf profiles.ini found"
+  fi
+}
+
+apply_all
+
+if [ "$loop" = "1" ]; then
+  echo "Re-applying configuration every 24 hours"
+  while :; do
+    sleep 86400
+    apply_all
+  done
+fi
+
+  fi
+
+  echo "Adding firefox flatpak overrides"
+  flatpak override --user --env=LIBVA_DRIVER_NAME=nvidia \
+                          --env=LIBVA_DRIVERS_PATH=${DRI_PATH} \
+                          --env=LIBVA_MESSAGING_LEVEL=1 \
+                          --env=MOZ_DISABLE_RDD_SANDBOX=1 \
+                          --env=NVD_BACKEND=direct \
+                          ${APP_ID}
+
+  echo "Copying nvidia vaapi driver into ${DRI_PATH}"
+  mkdir -p ${DRI_PATH}
+  for src in \
+      /usr/lib/dri/nvidia_drv_video.so \
+      /usr/lib64/dri/nvidia_drv_video.so \
+      /usr/lib64/va/drivers/nvidia_drv_video.so \
+      /usr/lib/va/drivers/nvidia_drv_video.so \
+      /usr/lib/x86_64-linux-gnu/dri/nvidia_drv_video.so \
+      /usr/lib/x86_64-linux-gnu/va/drivers/nvidia_drv_video.so; do
+    if [ -f "$src" ]; then
+      cp "$src" "${DRI_PATH}/nvidia_drv_video.so"
+      echo "  copied ${src}"
+      break
+    fi
+  done
+}
+
+find_profiles_ini() {
+  for base in \
+      "${HOME}/.var/app/${APP_ID}/config/librewolf/librewolf" \
+      "${HOME}/.var/app/${APP_ID}/config/librewolf" \
+      "${XDG_CONFIG_HOME:-${HOME}/.config}/librewolf/librewolf" \
+      "${XDG_CONFIG_HOME:-${HOME}/.config}/librewolf" \
+      "${HOME}/.librewolf" \
+      "${HOME}/.mozilla/librewolf"; do
+    if [ -f "${base}/profiles.ini" ]; then
+      echo "${base}/profiles.ini"
+      return 0
+    fi
+  done
+  return 1
+}
+
+profile_dir() {
+  ini="$1"
+  dir=$(dirname "$ini")
+  block=$(awk -v RS='' '/^\[Profile/ && /Default=1/ { print; exit }' "$ini")
+  if [ -z "$block" ]; then
+    block=$(awk -v RS='' '/^\[Profile/ { print; exit }' "$ini")
+  fi
+  path=$(printf '%s\n' "$block" | sed -n 's/^Path=//p' | tr -d '\r' | head -n1)
+  if [ -n "$path" ]; then
+    printf '%s/%s\n' "$dir" "$path"
+    return 0
+  fi
+  return 1
+}
+
+apply_prefs() {
+  userjs="$1"
+  if [ ! -f "$userjs" ]; then
+    : > "$userjs"
+  fi
+  if [ -s "$userjs" ] && [ "$(tail -c 1 "$userjs" | wc -c)" -ne 0 ]; then
+    printf '\n' >> "$userjs"
+  fi
+
+  for entry in \
+      'gfx.webrender.all|true' \
+      'media.ffmpeg.vaapi.enabled|true' \
+      'media.hardware-video-decoding.force-enabled|true' \
+      'media.rdd-ffmpeg.enabled|true' \
+      'media.av1.enabled|false' \
+      'gfx.x11-egl.force-enabled|true' \
+      'widget.dmabuf.force-enabled|true' \
+      'widget.wayland-dmabuf-vaapi.enabled|true'; do
+    name=${entry%%|*}
+    val=${entry##*|}
+    case "$val" in
+      true|false) line="user_pref(\"${name}\", ${val});" ;;
+      *) line="user_pref(\"${name}\", \"${val}\");" ;;
+    esac
+    if grep -q "user_pref(\"${name}\"," "$userjs"; then
+      sed -i "s|^user_pref(\"${name}\", .*);|${line}|" "$userjs"
+    else
+      printf '%s\n' "$line" >> "$userjs"
+    fi
+  done
+  echo "Applied about:config overrides to ${userjs}"
+}
+
+apply_all() {
+  apply_flatpak
+  ini=$(find_profiles_ini)
+  if [ -n "$ini" ]; then
+    pdir=$(profile_dir "$ini")
+    if [ -n "$pdir" ]; then
+      apply_prefs "${pdir}/user.js"
+    else
+      echo "Could not determine default profile from ${ini}"
+    fi
+  else
+    echo "No LibreWolf profiles.ini found"
+  fi
+}
+
+apply_all
+
+if [ "$loop" = "1" ]; then
+  echo "Re-applying configuration every 24 hours"
+  while :; do
+    sleep 86400
+    apply_all
+  done
+fi
