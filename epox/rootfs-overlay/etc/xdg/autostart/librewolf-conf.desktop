@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=LibreWolf NVENC Config
+Comment=Reapplies LibreWolf NVENC/VAAPI about:config overrides every 24 hours
+Exec=/usr/bin/nvenc-firefox --loop
+Terminal=false
+X-GNOME-Autostart-enabled=true
+NoDisplay=true
