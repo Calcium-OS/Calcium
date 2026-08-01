@@ -588,6 +588,9 @@ du -hx --max-depth=2 /usr /var /opt /home /root 2>/dev/null | sort -h -r | head 
 
 emerge -C www-client/epiphany
 run_optional "Remove outdated Image Viewer - Eye Of Gnome" emerge -C media-gfx/eog
+emerge -C gnome-extra/gnome-system-monitor
+
+
 
 echo "=================================================="
 echo ">>> LiveCD configuration complete"
