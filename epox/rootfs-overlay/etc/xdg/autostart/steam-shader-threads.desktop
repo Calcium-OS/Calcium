@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Steam Shader Thread Configuration
+Comment=Automatically set Steam shader compilation threads based on hardware
+Exec=/usr/local/bin/set-steam-shader-threads
+Terminal=false
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
