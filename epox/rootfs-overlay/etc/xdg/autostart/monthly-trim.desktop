@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Monthly SSD Trim
+Comment=Run fstrim every 30 days
+Exec=/usr/local/bin/monthly-trim.sh
+Terminal=false
+StartupNotify=false
+X-GNOME-Autostart-enabled=true
