@@ -165,11 +165,7 @@ echo "Installed:"
 
 # Ensure etc/xdg/autostart scripts run properly
 
-chmod u+x /usr/bin/nvenc-firefox
-chmod u+x /usr/bin/nvidia-smi-boot.sh
-chmod u+x /usr/bin/waydroid-start
-
-
+sudo chmod -R u+x /usr/bin/
 
 # End of patches
 
