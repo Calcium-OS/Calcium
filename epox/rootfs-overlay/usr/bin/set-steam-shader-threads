@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# See https://www.reddit.com/r/linux_gaming/comments/1j06xpz/how_to_speed_up_steams_shader_precaching/
+# 1 CPU thread is for laptop users who are compiling shaders in the background.
+
+USER_NAME=$(id -un)
+USER_HOME=$(getent passwd "$USER_NAME" | cut -d: -f6)
+
+LOG_DIR="$USER_HOME/.cache"
+LOG_FILE="$LOG_DIR/steam-shader-threads.log"
+
+CFG="$USER_HOME/.var/app/com.valvesoftware.Steam/.steam/steam/steam_dev.cfg"
+
+mkdir -p "$LOG_DIR"
+
+{
+    echo "----- $(date '+%Y-%m-%d %H:%M:%S') -----"
+    echo "User: $USER_NAME"
+    echo "Home: $USER_HOME"
+
+    if ls /sys/class/power_supply/BAT* >/dev/null 2>&1; then
+        THREADS=1
+        echo "Device: Laptop (battery detected)"
+    else
+        CPU_THREADS=$(nproc)
+        THREADS=$((CPU_THREADS - 2))
+        [ "$THREADS" -lt 1 ] && THREADS=1
+        echo "Device: Desktop (no battery detected)"
+        echo "CPU threads: $CPU_THREADS"
+    fi
+
+    echo "Shader threads: $THREADS"
+    echo "Config: $CFG"
+
+    mkdir -p "$(dirname "$CFG")"
+
+    if [ -f "$CFG" ]; then
+        grep -v '^unShaderBackgroundProcessingThreads ' "$CFG" > "$CFG.tmp"
+    else
+        touch "$CFG.tmp"
+    fi
+
+    echo "unShaderBackgroundProcessingThreads $THREADS" >> "$CFG.tmp"
+
+    mv "$CFG.tmp" "$CFG"
+
+    echo "Result:"
+    cat "$CFG"
+
+    echo
+} >> "$LOG_FILE" 2>&1
+
+chown "$USER_NAME:$USER_NAME" "$LOG_FILE" "$CFG" 2>/dev/null
+
+
+
+
+
+
+
+
+
+
