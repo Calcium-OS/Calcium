@@ -167,6 +167,16 @@ echo "Installed:"
 
 sudo chmod -R u+x /usr/bin/
 
+
+# Increase cache size
+
+flatpak override --user \                                                              
+  --env=DXVK_STATE_CACHE=1 \
+  --env=__GL_SHADER_DISK_CACHE=1 \
+  --env=__GL_SHADER_DISK_CACHE_SIZE=120000000000 \
+  --env=MESA_SHADER_CACHE_MAX_SIZE=120G \
+  com.valvesoftware.Steam
+
 # End of patches
 
 echo "Done!"

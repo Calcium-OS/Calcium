@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Steam Flatpak Environment Overrides
+Comment=Apply shader cache environment variables to the Steam Flatpak
+Exec=/usr/local/bin/steam-flatpak-env.sh
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+OnlyShowIn=GNOME;KDE;XFCE;LXQt;Cinnamon;MATE;
