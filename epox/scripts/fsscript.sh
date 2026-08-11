@@ -125,6 +125,7 @@ emerge --quiet --getbinpkg --backtrack=100 --update --deep --changed-use --autou
   sys-boot/grub \
   app-arch/7zip \
   app-arch/zpaq \
+  media-gfx/loupe
   net-vpn/tailscale \
   dev-python/pip \
   games-util/game-device-udev-rules \
@@ -166,7 +167,6 @@ printf '%s\n' \
   com.protonvpn.www \
   org.torproject.torbrowser-launcher \
   dev.zed.Zed \
-  org.gnome.Loupe \
   io.github.kolunmi.Bazaar \
   io.gitlab.librewolf-community \
   it.mijorus.gearlever \
