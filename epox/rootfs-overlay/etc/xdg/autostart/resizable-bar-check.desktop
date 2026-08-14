@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Resizable BAR Check
+Comment=Check GPU Resizable BAR status
+Exec=/usr/local/bin/resizable-bar-check.sh
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
