@@ -224,6 +224,7 @@ apply_prefs() {
       'media.av1.enabled|false' \
       'gfx.x11-egl.force-enabled|true' \
       'widget.dmabuf.force-enabled|true' \
+      'browser.tabs.unloadOnLowMemory' \
       'widget.wayland-dmabuf-vaapi.enabled|true'; do
     name=${entry%%|*}
     val=${entry##*|}
