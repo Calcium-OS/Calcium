@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=NVIDIA Driver Flatpak Check
+Comment=Update Flatpaks when the NVIDIA driver changes
+Exec=/usr/bin/nvidia-driver-flatpak-check
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
