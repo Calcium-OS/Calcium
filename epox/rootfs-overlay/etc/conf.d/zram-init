@@ -1,0 +1,18 @@
+load_on_start="yes"
+unload_on_stop="yes"
+num_devices="1"
+type0="swap"
+flag0=
+
+ram_kb=$(awk '/^MemTotal:/ {print $2}' /proc/meminfo)
+ram_gb=$((ram_kb / 1024 / 1024))
+
+if [ "$ram_gb" -ge 23 ] && [ "$ram_gb" -lt 25 ]; then
+    size0="15360"
+else
+    size0="$((ram_kb / 2048))"
+fi
+
+algo0=zstd
+# I will admit this is because of building mini maps and HLODs in UEFN. 
+# This should also help the future target hardware of a M1 Macbook Air with 8GB of RAM.
