@@ -131,16 +131,11 @@ emerge --quiet --getbinpkg --backtrack=100 --update --deep --changed-use --autou
   games-util/game-device-udev-rules \
   gnome-extra/gnome-shell-extension-gsconnect
 
-echo ">>> Configuring zram swap..."
-cat > /etc/conf.d/zram-init <<'ZRAMCONF'
-load_on_start="yes"
-unload_on_stop="yes"
-num_devices="1"
-type0="swap"
-flag0=
-size0="2048"
-algo0=zstd
-ZRAMCONF
+# Zram is configured in /etc/conf.d/zram-init
+
+
+
+
 
 echo ">>> Removing old Python installer..."
 rm -rf /usr/share/calcium-installer
