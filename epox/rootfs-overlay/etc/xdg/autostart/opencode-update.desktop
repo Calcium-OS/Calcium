@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=OpenCode Updater
+Comment=Automatically update OpenCode weekly
+Exec=/usr/local/bin/update-opencode
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
