@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO="anomalyco/opencode"
+INTERVAL=604800 # 7 days
+
+# Determine the actual desktop user.
+# XDG autostart runs this as the logged-in user, so HOME is correct.
+USER_HOME="${HOME}"
+
+INSTALL_DIR="${USER_HOME}/.local/bin"
+BINARY="${INSTALL_DIR}/opencode"
+STATE_DIR="${XDG_STATE_HOME:-${USER_HOME}/.local/state}/opencode"
+LAST_CHECK="${STATE_DIR}/last-update"
+
+mkdir -p "$INSTALL_DIR" "$STATE_DIR"
+
+# ------------------------------------------------------------
+# Only check once every 7 days
+# ------------------------------------------------------------
+
+NOW="$(date +%s)"
+
+if [[ -f "$LAST_CHECK" ]]; then
+    LAST="$(cat "$LAST_CHECK" 2>/dev/null || echo 0)"
+
+    if [[ "$LAST" =~ ^[0-9]+$ ]] && (( NOW - LAST < INTERVAL )); then
+        exit 0
+    fi
+fi
+
+# Record the check immediately.
+# This prevents repeated logins from hammering GitHub.
+printf '%s\n' "$NOW" > "$LAST_CHECK"
+
+# ------------------------------------------------------------
+# Detect architecture
+# ------------------------------------------------------------
+
+case "$(uname -m)" in
+    x86_64|amd64)
+        ARCH="x64"
+        ;;
+    aarch64|arm64)
+        ARCH="arm64"
+        ;;
+    *)
+      	exit 0
+	;;
+esac
+
+# ------------------------------------------------------------
+# Get latest OpenCode release from GitHub
+# ------------------------------------------------------------
+
+VERSION="$(
+    curl -fsSL \
+        -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/${REPO}/releases/latest" |
+    sed -nE 's/.*"tag_name":[[:space:]]*"([^"]+)".*/\1/p' |
+    head -n1
+)"
+
+[[ -n "$VERSION" ]] || exit 0
+
+LATEST="${VERSION#v}"
+
+# ------------------------------------------------------------
+# Determine installed version
+# ------------------------------------------------------------
+
+CURRENT=""
+
+if [[ -x "$BINARY" ]]; then
+    CURRENT="$(
+        "$BINARY" --version 2>/dev/null |
+        grep -oE '[0-9]+\.[0-9]+\.[0-9]+' |
+        head -n1 || true
+    )
+fi
+
+# Already up to date
+if [[ "$CURRENT" == "$LATEST" ]]; then
+    exit 0
+fi
+
+# ------------------------------------------------------------
+# Download
+# ------------------------------------------------------------
+
+TMP_DIR="$(mktemp -d)"
+trap 'rm -rf "$TMP_DIR"' EXIT
+
+ARCHIVE="${TMP_DIR}/opencode.tar.gz"
+URL="https://github.com/${REPO}/releases/download/${VERSION}/opencode-linux-${ARCH}.tar.gz"
+
+if ! curl -fL --silent --show-error "$URL" -o "$ARCHIVE"; then
+    exit 0
+fi
+
+# ------------------------------------------------------------
+# Extract
+# ------------------------------------------------------------
+
+tar -xzf "$ARCHIVE" -C "$TMP_DIR"
+
+NEW_BINARY="$(
+    find "$TMP_DIR" \
+        -type f \
+        -name opencode \
+        -print -quit
+)"
+
+[[ -n "$NEW_BINARY" ]] || exit 0
+
+# ------------------------------------------------------------
+# Install atomically
+# ------------------------------------------------------------
+
+chmod 755 "$NEW_BINARY"
+
+install -m 755 "$NEW_BINARY" "${BINARY}.new"
+
+mv -f "${BINARY}.new" "$BINARY"
