@@ -375,6 +375,7 @@ run_optional "Gsettings Dock Change Part 2" gsettings set org.gnome.shell.extens
 run_optional "Gsettings Dock Change Part 3" gsettings set org.gnome.shell.extensions.dash-to-dock autohide false
 run_optional "Set GNOME to dark mode" gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
 run_optional "Automount Drives" gsettings set org.gnome.desktop.media-handling automount true
+run_optional "Show minimize and maximise button" gsettings set org.gnome.desktop.wm.preferences button-layout ':minimize,maximize,close'
 
 # GNOME likes to lock its self automatically. That is fine, the problem is the lock screen turns off the monitor screens which can cause issues with Sunshine
 # I do not enable this just in case it causes issues with laptop users, but the fix is simple in cause you want to use a laptop as a streaming server.
