@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=NVIDIA VRR Workaround
+Exec=/usr/local/bin/nvidia-vrr-workaround.sh
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
